@@ -207,6 +207,13 @@ const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
 
+  // 0. Healthcheck & UptimeRobot Ping (Server uxlab qolmasligi uchun)
+  if (pathname === '/health' || pathname === '/ping') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), time: new Date().toISOString() }));
+    return;
+  }
+
   // 1. Rolni tekshirish: GET /api/check-role?phone=...
   if (req.method === 'GET' && pathname === '/api/check-role') {
     const rawPhone = parsedUrl.query.phone || '';
