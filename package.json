@@ -1,0 +1,16 @@
+{
+  "name": "apex-academy-bot",
+  "version": "1.0.0",
+  "description": "Apex Academy Telegram Bot and Mini App System",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "telegram-bot",
+    "mini-app",
+    "education"
+  ],
+  "author": "Apex Academy",
+  "license": "ISC"
+}

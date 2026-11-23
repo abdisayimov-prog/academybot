@@ -1,0 +1,33 @@
+# ==========================================
+# MAXFIY MA'LUMOTLAR VA KALITLAR (SECRETS)
+# Bular hech qachon GitHub ga yuklanmasligi shart!
+# ==========================================
+bot_config.json
+.env
+.env.*
+*.env
+
+# ==========================================
+# FOYDALANUVCHILAR VA BIZNES MA'LUMOTLARI (PII)
+# Real o'quvchilar, ustozlar, cheklar, davomat
+# ==========================================
+leads.json
+users.json
+teachers.json
+receipts.json
+attendance.json
+receipts/
+*.jpg
+*.jpeg
+*.png
+
+# ==========================================
+# KATTA VA TIZIM FAYLLARI
+# ==========================================
+cloudflared.exe
+config.yml
+start.bat
+start_all.bat
+node_modules/
+.DS_Store
+Thumbs.db

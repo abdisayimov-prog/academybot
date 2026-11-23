@@ -1,0 +1,2324 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Apex Academy | Telegram Mini App</title>
+
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-color: var(--tg-theme-bg-color, #0b0f19);
+      --text-color: var(--tg-theme-text-color, #f8fafc);
+      --card-bg: rgba(22, 30, 49, 0.75);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --primary-color: var(--tg-theme-button-color, #4f46e5);
+      --primary-text: var(--tg-theme-button-text-color, #ffffff);
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+    }
+
+    .glass-card-hover {
+      transition: all 0.25s ease;
+    }
+    .glass-card-hover:active {
+      transform: scale(0.98);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .gradient-brand {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .nav-tab.active {
+      color: #6366f1;
+    }
+    .nav-tab.active .tab-icon {
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between pb-24 text-slate-100">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-white/5 px-4 py-3">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl gradient-brand flex items-center justify-center text-white text-xl font-extrabold shadow-lg shadow-indigo-500/25">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-extrabold tracking-tight">Apex Academy</h1>
+            <span id="roleBadge" class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-ping"></span> O'quvchi
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 flex items-center gap-1">
+            <span id="userGreeting">Salom!</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="toggleLang()" class="px-2.5 py-1 rounded-xl bg-slate-800/80 border border-white/10 text-xs font-semibold text-slate-300 active:scale-95 transition-transform flex items-center gap-1.5">
+          <i class="fa-solid fa-globe text-indigo-400"></i>
+          <span id="langLabel">UZ</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER (Tabs Container) -->
+  <main class="flex-1 px-4 pt-3 pb-4 max-w-lg mx-auto w-full">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: BOSH SAHIFA (HOME)                  -->
+    <!-- ========================================== -->
+    <div id="tab-home" class="tab-content space-y-5">
+      
+      <!-- Promo Banner -->
+      <div class="relative overflow-hidden rounded-3xl p-5 gradient-brand text-white shadow-xl shadow-indigo-600/20">
+        <div class="relative z-10">
+          <div class="flex items-center justify-between mb-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold uppercase tracking-wider">
+              🎁 MAXSUS TAKLIF
+            </span>
+            <span class="text-xs bg-black/25 px-2 py-0.5 rounded-full font-mono text-amber-300">
+              <i class="fa-regular fa-clock mr-1"></i>3 kun qoldi
+            </span>
+          </div>
+          <h2 class="text-xl font-extrabold leading-tight mb-1.5">Birinchi Sinov Darsi — Mutlaqo Bepul!</h2>
+          <p class="text-xs text-white/80 mb-4 leading-relaxed">
+            Ingliz tili yoki IT bo'yicha bilimingizni bepul tekshiring va professional ustozlardan saboq oling.
+          </p>
+          <div class="flex gap-2">
+            <button onclick="openEnrollModal('Bosh sahifa - Sinov Darsi')" class="flex-1 py-2.5 bg-white text-indigo-700 font-bold rounded-xl text-xs shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+              <i class="fa-solid fa-calendar-check text-indigo-600"></i>
+              <span>Sinov Darsiga Yozilish</span>
+            </button>
+            <button onclick="switchTab('ai')" class="px-3.5 py-2.5 bg-white/15 hover:bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold active:scale-95 transition-transform">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+          </div>
+        </div>
+        <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+      </div>
+
+      <!-- Quick Action Cards -->
+      <div class="grid grid-cols-4 gap-2.5">
+        <button onclick="switchTab('courses')" class="glass-card rounded-2xl p-2.5 flex flex-col items-center text-center active:scale-95 transition-transform">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-base mb-1.5">
+            <i class="fa-solid fa-book-open"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-200">Kurslar</span>
+        </button>
+
+        <button onclick="switchTab('cabinet')" class="glass-card rounded-2xl p-2.5 flex flex-col items-center text-center active:scale-95 transition-transform">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-base mb-1.5">
+            <i class="fa-solid fa-clipboard-check"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-200">Davomat</span>
+        </button>
+
+        <button onclick="switchTab('cabinet')" class="glass-card rounded-2xl p-2.5 flex flex-col items-center text-center active:scale-95 transition-transform">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center text-base mb-1.5">
+            <i class="fa-solid fa-credit-card"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-200">To'lovlar</span>
+        </button>
+
+        <button onclick="switchTab('ai')" class="glass-card rounded-2xl p-2.5 flex flex-col items-center text-center active:scale-95 transition-transform">
+          <div class="w-10 h-10 rounded-xl bg-pink-500/15 text-pink-400 flex items-center justify-center text-base mb-1.5">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-200">AI Maslahat</span>
+        </button>
+      </div>
+
+      <!-- MOCK TEST AVTOMATIZATSIYASI BANNERI (Faqat ustoz ochganda ko'rinadi) -->
+      <div id="mockBannerSection" class="hidden glass-card rounded-3xl p-4 border border-indigo-500/30 bg-gradient-to-br from-indigo-950/60 via-slate-900/80 to-purple-950/50 shadow-xl relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-extrabold uppercase tracking-wider border border-indigo-500/30">
+            🎯 HAFTALIK MOCK EXAM
+          </span>
+          <span id="mockLiveBadge" class="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/20">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Qabul ochiq
+          </span>
+        </div>
+        
+        <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+          <span id="mockBannerDate" class="text-[11px] font-bold text-indigo-300 bg-indigo-500/10 px-2.5 py-0.5 rounded-lg border border-indigo-500/20">Har shanba</span>
+          <span id="mockBannerPrice" class="text-[11px] font-bold text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-lg border border-amber-400/20">50 000 so'm</span>
+        </div>
+        <h3 id="mockBannerTitle" class="text-base font-extrabold text-white mb-1">Rasmiy IELTS Mock Imtihoni</h3>
+        <p id="mockBannerDesc" class="text-xs text-slate-300 mb-3">Har shanba xalqaro standartda 4 ta bo'lim (L, R, W, S) bo'yicha imtihon va tezkor baholash.</p>
+        
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-white/5 text-center">
+            <div id="mockShift1Name" class="text-[10px] text-slate-400 truncate">1-smena (10:00 - 13:00)</div>
+            <div id="mockShift1Slots" class="text-xs font-black text-emerald-400 mt-0.5">15 ta joy qoldi</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-white/5 text-center">
+            <div id="mockShift2Name" class="text-[10px] text-slate-400 truncate">2-smena (14:00 - 17:00)</div>
+            <div id="mockShift2Slots" class="text-xs font-black text-amber-400 mt-0.5">10 ta joy qoldi</div>
+          </div>
+        </div>
+
+        <button onclick="openMockRegisterModal()" class="w-full py-2.5 gradient-brand text-white font-bold rounded-xl text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-ticket"></i>
+          <span>Mock Testga Yozilish & Chipta Olish</span>
+        </button>
+      </div>
+
+      <!-- Featured Courses Preview (Dinamik) -->
+      <div id="homeCoursesSection" class="space-y-3 hidden">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-fire text-amber-400"></i> Ommabop Kurslar
+          </h3>
+          <button onclick="switchTab('courses')" class="text-xs text-indigo-400 font-semibold hover:underline">
+            Barchasi <i class="fa-solid fa-angle-right text-[10px]"></i>
+          </button>
+        </div>
+        <div id="homeCoursesContainer" class="space-y-3"></div>
+      </div>
+
+      <!-- Location & Contact -->
+      <div class="glass-card rounded-2xl p-4">
+        <h4 class="text-sm font-bold text-white mb-1 flex items-center gap-2">
+          <i class="fa-solid fa-location-dot text-rose-500"></i> Bizning Markaz
+        </h4>
+        <p class="text-xs text-slate-300 mb-3">Toshkent sh., Chilonzor metrosi yonida, 5-bino. Mo'ljal: Korzinka ro'parasi.</p>
+        <div class="grid grid-cols-2 gap-2">
+          <a href="tel:+998959011445" class="py-2.5 px-3 bg-slate-800/90 rounded-xl text-center text-xs font-semibold text-slate-200 border border-white/5 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-phone text-emerald-400"></i> Qo'ng'iroq
+          </a>
+          <button onclick="openTelegramBot()" class="py-2.5 px-3 bg-indigo-600/20 rounded-xl text-center text-xs font-semibold text-indigo-300 border border-indigo-500/30 flex items-center justify-center gap-2">
+            <i class="fa-brands fa-telegram text-indigo-400"></i> Botga Qaytish
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 2: KURSLAR KATALOGI                    -->
+    <!-- ========================================== -->
+    <div id="tab-courses" class="tab-content hidden space-y-4">
+      
+      <div class="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
+        <button onclick="filterCourses('all')" class="course-filter active px-3.5 py-1.5 rounded-full text-xs font-bold bg-indigo-600 text-white whitespace-nowrap shadow-sm">
+          Barchasi
+        </button>
+        <button onclick="filterCourses('english')" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
+          🇬🇧 Ingliz tili
+        </button>
+        <button onclick="filterCourses('it')" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
+          💻 IT & Dasturlash
+        </button>
+        <button onclick="filterCourses('exact')" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
+          📐 Matematika
+        </button>
+      </div>
+
+      <div id="coursesContainer" class="space-y-3.5">
+        <!-- Dinamik ravishda /api/courses dan yuklanadi -->
+      </div>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 3: KABINET (O'QUVCHI & USTOZ PANELI)   -->
+    <!-- ========================================== -->
+    <div id="tab-cabinet" class="tab-content hidden space-y-4">
+      
+      <!-- Role Toggle Header -->
+      <div id="cabinetRoleBar" class="p-1 bg-slate-900 rounded-2xl border border-white/10 flex">
+        <button id="btnRoleStudent" onclick="switchCabinetRole('student')" class="flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all">
+          <i class="fa-solid fa-user-graduate mr-1.5"></i> O'quvchi Kabineti
+        </button>
+        <button id="btnRoleTeacher" onclick="switchCabinetRole('teacher')" class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all">
+          <i class="fa-solid fa-chalkboard-user mr-1.5"></i> Ustoz & Admin Paneli
+        </button>
+      </div>
+
+      <!-- VIEW A: O'QUVCHI / OTA-ONA KABINETI -->
+      <div id="viewStudent" class="space-y-4">
+
+        <!-- Student Profile Card -->
+        <div class="glass-card rounded-2xl p-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl text-indigo-400 font-black">
+              <span id="studentInitials">O'</span>
+            </div>
+            <div>
+              <h4 id="studentName" class="text-sm font-bold text-white">O'quvchi</h4>
+              <p class="text-xs text-indigo-400 font-semibold">Guruh: Faol o'quvchi</p>
+            </div>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
+            Faol
+          </span>
+        </div>
+
+        <!-- Shaxsiy Davomat (Dinamik) -->
+        <div class="glass-card rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <i class="fa-solid fa-calendar-check text-emerald-400 mr-1.5"></i> Shaxsiy Davomat
+            </h4>
+            <span id="studentAttendBadge" class="text-xs font-bold text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-md">
+              0 ta dars
+            </span>
+          </div>
+
+          <div class="p-3.5 text-center text-xs text-slate-400 rounded-xl bg-slate-900/60 border border-white/5" id="studentAttendBox">
+            <i class="fa-solid fa-clipboard-user text-2xl text-slate-600 mb-1.5 block"></i>
+            Darslar bo'yicha davomat hali boshlanmagan.<br>
+            <span class="text-[10px] text-slate-500">Ustoz guruh davomatini saqlaganda bu yerda avtomatik ko'rinadi.</span>
+          </div>
+        </div>
+
+        <!-- Payment Card -->
+        <div class="glass-card rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <i class="fa-solid fa-wallet text-amber-400 mr-1.5"></i> Kurs To'lovi
+            </h4>
+            <span class="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">
+              Faol
+            </span>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-white/5 mb-3 flex justify-between items-center">
+            <span class="text-xs text-slate-400">To'lov shakli:</span>
+            <span class="text-xs font-bold text-white">Click, Payme yoki Chek</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <button onclick="handlePayment('Click')" class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white flex items-center justify-center gap-2 active:scale-95 shadow-md">
+              <i class="fa-solid fa-bolt text-yellow-300"></i> Click
+            </button>
+            <button onclick="handlePayment('Payme')" class="py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-500 font-bold text-xs text-white flex items-center justify-center gap-2 active:scale-95 shadow-md">
+              <i class="fa-solid fa-credit-card"></i> Payme
+            </button>
+          </div>
+
+          <button onclick="openReceiptModal()" class="w-full mt-2.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-bold text-xs text-white flex items-center justify-center gap-2 active:scale-95 shadow-md border border-emerald-500/30">
+            <i class="fa-solid fa-receipt"></i> To'lov Chekini Yuklash (Kvitansiya)
+          </button>
+          <div id="receiptStatusBadge" class="hidden mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center text-xs text-amber-300 font-bold">
+            ⏳ Chekingiz yuborilgan, admin tekshiruvida
+          </div>
+        </div>
+
+      </div>
+
+      <!-- VIEW B: USTOZ VA ADMIN BOSHQARUV PANELI -->
+      <div id="viewTeacher" class="hidden space-y-4">
+        
+        <!-- Teacher Profile Header -->
+        <div class="glass-card rounded-2xl p-4 border border-indigo-500/30">
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-lg text-indigo-400 font-bold">
+                <i class="fa-solid fa-user-shield"></i>
+              </div>
+              <div>
+                <h4 id="dashTeacherName" class="text-sm font-bold text-white">Ustoz Paneli</h4>
+                <p id="dashTeacherRole" class="text-xs text-indigo-400">IELTS Mentori</p>
+              </div>
+            </div>
+            <button onclick="handleTeacherLogout()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 text-rose-400 hover:bg-slate-700 border border-white/5 text-xs font-semibold flex items-center gap-1 active:scale-95">
+              <i class="fa-solid fa-right-from-bracket"></i> Chiqish
+            </button>
+          </div>
+          <!-- O'qituvchining Shaxsiy Kursi Banneri -->
+          <div class="p-2.5 rounded-xl bg-indigo-600/15 border border-indigo-500/25 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="text-xs font-bold text-white">Sizning Kursingiz:</span>
+              <span id="dashTeacherCourse" class="text-xs font-extrabold text-indigo-300">IELTS Intensive</span>
+            </div>
+            <span class="text-[10px] text-slate-400 font-mono">Faqat sizning yo'nalishingiz</span>
+          </div>
+        </div>
+
+        <!-- Dashboard Sub-Tabs -->
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-1 p-1 bg-slate-900 rounded-2xl border border-white/5 text-center text-[10px]">
+          <button id="btnSubTabLeads" onclick="switchTeacherSubTab('leads')" class="py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm">
+            <i class="fa-solid fa-users block mb-0.5 text-xs"></i> Lidlar (<span id="leadsCountBadge">0</span>)
+          </button>
+          <button id="btnSubTabAttend" onclick="switchTeacherSubTab('attend')" class="py-2 rounded-xl font-bold text-slate-400 hover:text-white">
+            <i class="fa-solid fa-chalkboard-user block mb-0.5 text-xs"></i> Guruhlar
+          </button>
+          <button id="btnSubTabCourses" onclick="switchTeacherSubTab('courses')" class="py-2 rounded-xl font-bold text-slate-400 hover:text-white">
+            <i class="fa-solid fa-graduation-cap block mb-0.5 text-xs text-indigo-400"></i> Kurslar
+          </button>
+          <button id="btnSubTabSMM" onclick="switchTeacherSubTab('smm')" class="py-2 rounded-xl font-bold text-slate-400 hover:text-white">
+            <i class="fa-solid fa-bullhorn block mb-0.5 text-xs text-pink-400"></i> Auto-SMM
+          </button>
+          <button id="btnSubTabDirector" onclick="switchTeacherSubTab('director')" class="py-2 rounded-xl font-bold text-slate-400 hover:text-white">
+            <i class="fa-solid fa-chart-line block mb-0.5 text-xs text-emerald-400"></i> Hisobot
+          </button>
+          <button id="btnSubTabTeachers" onclick="switchTeacherSubTab('teachers')" class="py-2 rounded-xl font-bold text-slate-400 hover:text-white">
+            <i class="fa-solid fa-user-plus block mb-0.5 text-xs"></i> Ustozlar
+          </button>
+        </div>
+
+        <!-- SUB-VIEW 1: JONLI LIDLAR RO'YXATI (Faqat shu kursga oid) -->
+        <div id="teacherLeadsView" class="space-y-3">
+          <div class="flex items-center justify-between px-1">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <i class="fa-solid fa-bell text-amber-400 mr-1"></i> Sizning Kursingizga Kelgan Lidlar
+            </h4>
+            <button onclick="fetchTeacherLeads()" class="text-xs text-indigo-400 font-semibold hover:underline flex items-center gap-1">
+              <i class="fa-solid fa-rotate-right"></i> Yangilash
+            </button>
+          </div>
+
+          <div id="leadsListContainer" class="space-y-2.5">
+            <div class="p-4 text-center text-xs text-slate-400">Yuklanmoqda...</div>
+          </div>
+        </div>
+
+        <!-- SUB-VIEW 2: GURUHLARIM VA YANGI GURUH OCHISH & DAVOMAT -->
+        <div id="teacherAttendView" class="hidden space-y-3">
+          
+          <!-- Yangi Guruh Ochish Kartasi -->
+          <div class="glass-card rounded-2xl p-4 border border-indigo-500/20 shadow-lg">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-folder-plus text-indigo-400"></i> Yangi Guruh Ochish
+              </h4>
+              <span id="currentCourseLabel" class="text-[10px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md font-bold">IELTS</span>
+            </div>
+            <form id="createGroupForm" onsubmit="handleCreateGroup(event)" class="space-y-2.5">
+              <div>
+                <input type="text" id="newGroupName" required placeholder="Guruh nomi (masalan: IELTS 15:00 Kunduzgi)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <select id="newGroupDays" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                  <option value="Dush-Chor-Jum">Dush-Chor-Jum</option>
+                  <option value="Sesh-Pay-Shan">Sesh-Pay-Shan</option>
+                  <option value="Har kuni">Har kuni</option>
+                  <option value="Dam olish (Shanba-Yak)">Shanba-Yakshanba</option>
+                </select>
+                <input type="text" id="newGroupTime" required placeholder="Vaqt (15:00 - 17:00)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+              </div>
+              <button type="submit" class="w-full py-2.5 rounded-xl gradient-brand text-white font-bold text-xs shadow-md active:scale-95 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-plus"></i> Yangi Guruhni Saqlash
+              </button>
+            </form>
+          </div>
+
+          <!-- Ustozning Guruhlari va Davomat -->
+          <div class="glass-card rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <i class="fa-solid fa-layer-group text-indigo-400 mr-1"></i> Mening Guruhlarim va Davomat
+              </h4>
+              <button onclick="fetchTeacherGroups()" class="text-xs text-indigo-400 font-semibold hover:underline">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+
+            <div id="teacherGroupsContainer" class="space-y-3">
+              <div class="p-3 text-center text-xs text-slate-400">Guruhlar yuklanmoqda...</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SUB-VIEW: KURSLAR BOSHQARUVI VA YANGI KURS QO'SHISH -->
+        <div id="teacherCoursesView" class="hidden space-y-3">
+          
+          <!-- Yangi Kurs Qo'shish Kartasi -->
+          <div class="glass-card rounded-2xl p-4 border border-indigo-500/20 shadow-lg">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-1.5 flex items-center gap-1.5">
+              <i class="fa-solid fa-plus-circle text-indigo-400"></i> Yangi Kurs Qo'shish
+            </h4>
+            <p class="text-[11px] text-slate-400 mb-3 leading-relaxed">
+              O'quvchilarga ko'rinadigan yangi kursingiz ma'lumotlarini kiriting va e'lon qiling:
+            </p>
+
+            <form id="addCourseForm" onsubmit="handleAddCourse(event)" class="space-y-2.5">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Kurs nomi</label>
+                <input type="text" id="newCourseName" required placeholder="Masalan: IELTS 7.5+ Intensive" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-400 mb-1">Yo'nalish</label>
+                  <select id="newCourseCategory" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="english">🇬🇧 Ingliz tili</option>
+                    <option value="it">💻 IT & Dasturlash</option>
+                    <option value="exact">📐 Matematika</option>
+                    <option value="other">📚 Boshqa yo'nalish</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-400 mb-1">Oylik to'lov</label>
+                  <input type="text" id="newCoursePrice" required placeholder="850 000 so'm" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-400 mb-1">Dars kunlari / vaqti</label>
+                  <input type="text" id="newCourseSchedule" placeholder="Dush-Chor-Jum 18:30" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-400 mb-1">Belgisi (ixtiyoriy)</label>
+                  <input type="text" id="newCourseBadge" placeholder="TOP Kurs ⭐" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Qisqa tavsif</label>
+                <textarea id="newCourseDesc" required rows="2" placeholder="Kurs haqida qisqacha ma'lumot va afzalliklari..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"></textarea>
+              </div>
+
+              <button type="submit" id="btnAddCourseSubmit" class="w-full py-2.5 rounded-xl gradient-brand text-white font-bold text-xs shadow-md active:scale-95 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-plus"></i> Kursni E'lon Qilish
+              </button>
+            </form>
+          </div>
+
+          <!-- Haftalik Mock Test Boshqaruvi Kartasi -->
+          <div class="glass-card rounded-2xl p-4 border border-purple-500/30">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-ticket text-purple-400"></i> Haftalik Mock Test Boshqaruvi
+              </h4>
+              <span id="adminMockStatusBadge" class="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400 border border-slate-700">Yuklanmoqda...</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mb-3 leading-relaxed">
+              Mock test faqat siz ochganingizdagina o'quvchilarga ko'rinadi. Yopiq holatda asosiy sahifada yashiringan bo'ladi.
+            </p>
+
+            <div id="mockAdminActionBox" class="space-y-2">
+              <!-- Dinamik ochish / yopish tugmalari -->
+            </div>
+          </div>
+
+          <!-- Mavjud Kurslar Ro'yxati -->
+          <div class="glass-card rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <i class="fa-solid fa-list-check text-indigo-400 mr-1"></i> Barcha E'lon Qilingan Kurslar
+              </h4>
+              <button onclick="fetchCourses()" class="text-xs text-indigo-400 font-semibold hover:underline">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+
+            <div id="adminCoursesList" class="space-y-2.5">
+              <div class="p-4 text-center text-xs text-slate-400">Yuklanmoqda...</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SUB-VIEW 3: USTOZLARNI BOSHQARISH (ADMIN) -->
+        <div id="teacherManagementView" class="hidden space-y-3">
+          
+          <!-- Yangi o'qituvchi qo'shish kartasi -->
+          <div class="glass-card rounded-2xl p-4 border border-indigo-500/20 shadow-lg">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-1.5 flex items-center gap-1.5">
+              <i class="fa-solid fa-user-plus text-indigo-400"></i> Yangi O'qituvchi Qo'shish
+            </h4>
+            <p class="text-[11px] text-slate-400 mb-3 leading-relaxed">
+              Bu yerga kiritilgan o'qituvchi botga /start bosib kontaktini yuborishi bilan — unga avtomatik ravishda Ustoz Paneli ochiladi!
+            </p>
+
+            <form id="addTeacherForm" onsubmit="handleAddTeacher(event)" class="space-y-2.5">
+              <div>
+                <input type="text" id="newTeacherName" required placeholder="Ustoz ismi-familiyasi (masalan: Azizbek)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <input type="tel" id="newTeacherPhone" required placeholder="+998 90 123 45 67" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                <input type="text" id="newTeacherGroup" required placeholder="Guruh (masalan: IELTS 18:30)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+              </div>
+              <button type="submit" class="w-full py-2.5 rounded-xl gradient-brand text-white font-bold text-xs shadow-md active:scale-95 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-plus"></i> O'qituvchini Saqlash
+              </button>
+            </form>
+          </div>
+
+          <!-- Mavjud o'qituvchilar ro'yxati -->
+          <div class="glass-card rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <i class="fa-solid fa-users-gear text-indigo-400 mr-1"></i> Ruxsat Berilgan Ustozlar
+              </h4>
+              <button onclick="fetchTeachersList()" class="text-xs text-indigo-400 font-semibold hover:underline">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+
+            <div id="teachersListContainer" class="space-y-2">
+              <div class="p-3 text-center text-xs text-slate-400">Yuklanmoqda...</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SUB-VIEW 4: AUTO-SMM (Masterplan 8-band) -->
+        <div id="teacherSMMView" class="hidden space-y-3">
+          <div class="glass-card rounded-2xl p-4 border border-indigo-500/20 shadow-lg">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-bullhorn text-pink-400"></i> AI Auto-SMM Kopirayter
+              </h4>
+              <span class="text-[10px] text-pink-300 bg-pink-500/10 px-2 py-0.5 rounded-md font-bold">Kanalga E'lon</span>
+            </div>
+            <p class="text-[11px] text-slate-300 mb-3">
+              Yangi ochilayotgan guruh haqida qisqa ma'lumot kiriting. Gemini AI uni jozibali marketing postiga aylantirib beradi:
+            </p>
+
+            <div class="space-y-2.5">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Kurs nomi</label>
+                <input type="text" id="smmCourse" value="IELTS Intensive (7.5+ Kafolat)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-400 mb-1">Ustoz</label>
+                  <input type="text" id="smmTeacher" value="Sherzodbek" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-400 mb-1">Dars Vaqti</label>
+                  <input type="text" id="smmTime" value="18:30 - 20:30 (Dush-Chor-Jum)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Maxsus Chegirma / Taklif</label>
+                <input type="text" id="smmDiscount" value="Dastlabki 5 ta o'quvchiga 15% chegirma + Bepul darslik" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              </div>
+
+              <button onclick="handleGenerateSMM()" id="btnGenerateSMM" class="w-full py-2.5 rounded-xl gradient-brand text-white font-bold text-xs shadow-md active:scale-95 flex items-center justify-center gap-1.5 mt-2">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> <span>AI Marketing Postini Yaratish</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Generated Post Preview -->
+          <div id="smmPreviewCard" class="hidden glass-card rounded-2xl p-4 border border-indigo-500/30">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                <i class="fa-brands fa-telegram text-sky-400 text-sm"></i> Telegram Post Ko'rinishi
+              </span>
+              <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md font-mono">Tayyor</span>
+            </div>
+            <div id="smmPreviewText" class="p-3 rounded-xl bg-slate-900/90 border border-white/5 text-xs text-slate-200 whitespace-pre-line font-sans mb-3"></div>
+
+            <button onclick="handlePublishSMM()" id="btnPublishSMM" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-paper-plane"></i> <span>Kanalga Chiqarish 🚀 (Inline Tugma Bilan)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SUB-VIEW 5: DIREKTOR OYLIK AI HISOBOTI (Masterplan 7-band) -->
+        <div id="teacherDirectorView" class="hidden space-y-3">
+          <!-- 4 Stat Cards -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="glass-card rounded-2xl p-3 border border-indigo-500/20">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
+                  <i class="fa-solid fa-users"></i>
+                </div>
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Jami Lidlar</span>
+              </div>
+              <div id="repTotalLeads" class="text-lg font-black text-white">0 ta</div>
+              <div class="text-[10px] text-emerald-400">Sinov darsiga arizalar</div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-3 border border-emerald-500/20">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
+                  <i class="fa-solid fa-money-bill-wave"></i>
+                </div>
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Tushum (Oy)</span>
+              </div>
+              <div id="repTotalRevenue" class="text-base font-black text-emerald-400">0 so'm</div>
+              <div class="text-[10px] text-emerald-300">Tasdiqlangan to'lovlar</div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-3 border border-amber-500/20">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs">
+                  <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Faol Guruhlar</span>
+              </div>
+              <div id="repActiveGroups" class="text-lg font-black text-white">0 ta</div>
+              <div class="text-[10px] text-amber-300">Mavjud guruhlar</div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-3 border border-purple-500/20">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">
+                  <i class="fa-solid fa-ticket"></i>
+                </div>
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Mock Imtihon</span>
+              </div>
+              <div id="repMockCount" class="text-lg font-black text-white">0 ta</div>
+              <div class="text-[10px] text-purple-300">Band qilingan chiptalar</div>
+            </div>
+          </div>
+
+          <!-- AI Executive Analysis & Recommendations -->
+          <div class="glass-card rounded-2xl p-4 border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900 to-purple-950/30">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-brain text-indigo-400"></i> O'quv Markazi Boshqaruv Tahlili
+              </h4>
+              <button onclick="fetchDirectorReport()" class="text-xs text-indigo-400 hover:text-indigo-300">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+            <div id="repAiSummary" class="text-xs text-slate-300 leading-relaxed whitespace-pre-line">
+              Yuklanmoqda...
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 4: AI KONSULTANT CHAT (1-Modul)        -->
+    <!-- ========================================== -->
+    <div id="tab-ai" class="tab-content hidden flex flex-col h-[calc(100vh-140px)]">
+      
+      <div class="glass-card rounded-2xl p-3 mb-3 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center text-white text-base shadow-md">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div>
+            <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+              Apex AI Maslahatchi
+              <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+            </h4>
+            <p class="text-[10px] text-slate-400">24/7 onlayn konsultatsiya</p>
+          </div>
+        </div>
+        <button onclick="clearChat()" class="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg bg-slate-800">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Tozalash
+        </button>
+      </div>
+
+      <div id="chatMessages" class="flex-1 overflow-y-auto space-y-3 pr-1 hide-scrollbar">
+        <div class="flex items-start gap-2 max-w-[88%]">
+          <div class="w-7 h-7 rounded-lg bg-indigo-600 flex-shrink-0 flex items-center justify-center text-[11px] text-white">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-slate-800/90 border border-white/5 rounded-2xl rounded-tl-sm p-3 text-xs leading-relaxed text-slate-200">
+            Assalomu alaykum! Men <strong>Apex Academy AI</strong> maslahatchisiman. 🎓<br><br>
+            Sizga kurslarimiz, narxlar yoki bepul sinov darsi haqida ma'lumot bera olaman. Sinov darsiga yozilish uchun telefon raqamingizni shu yerga yozib qoldirishingiz mumkin!
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Suggested Questions -->
+      <div class="py-2 flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
+        <button onclick="sendQuickPrompt('IELTS kurslari narxi va dars vaqtlari qanday?')" class="px-2.5 py-1 rounded-full bg-slate-800 border border-white/10 text-[11px] text-slate-300 whitespace-nowrap active:scale-95">
+          🇬🇧 IELTS narxi?
+        </button>
+        <button onclick="sendQuickPrompt('IT va Dasturlash kursingiz qachon boshlanadi?')" class="px-2.5 py-1 rounded-full bg-slate-800 border border-white/10 text-[11px] text-slate-300 whitespace-nowrap active:scale-95">
+          💻 IT darslari?
+        </button>
+        <button onclick="sendQuickPrompt('Meni bepul sinov darsiga yozib qo\'ying')" class="px-2.5 py-1 rounded-full bg-slate-800 border border-white/10 text-[11px] text-slate-300 whitespace-nowrap active:scale-95">
+          🎁 Bepul darsga yozilish
+        </button>
+      </div>
+
+      <!-- Chat Input Box -->
+      <div class="pt-2">
+        <form id="chatForm" onsubmit="handleSendChatMessage(event)" class="flex items-center gap-2">
+          <input type="text" id="chatInput" placeholder="Savol yoki telefon raqamingizni yozing..." class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+          <button type="submit" class="w-10 h-10 rounded-xl gradient-brand text-white flex items-center justify-center text-sm shadow-md active:scale-95 transition-transform flex-shrink-0">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- BOTTOM NAVIGATION BAR (Fixed Footer)       -->
+  <!-- ========================================== -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/90 backdrop-blur-lg border-t border-white/10 py-2 px-4 max-w-lg mx-auto">
+    <div class="grid grid-cols-4 gap-1 text-center">
+      
+      <button onclick="switchTab('home')" class="nav-tab active flex flex-col items-center justify-center py-1 transition-all" data-tab="home">
+        <i class="fa-solid fa-house tab-icon text-lg mb-1 transition-transform"></i>
+        <span class="text-[10px] font-bold">Asosiy</span>
+      </button>
+
+      <button onclick="switchTab('courses')" class="nav-tab flex flex-col items-center justify-center py-1 text-slate-400 hover:text-white transition-all" data-tab="courses">
+        <i class="fa-solid fa-graduation-cap tab-icon text-lg mb-1 transition-transform"></i>
+        <span class="text-[10px] font-bold">Kurslar</span>
+      </button>
+
+      <button onclick="switchTab('cabinet')" class="nav-tab flex flex-col items-center justify-center py-1 text-slate-400 hover:text-white transition-all" data-tab="cabinet">
+        <i class="fa-solid fa-chart-pie tab-icon text-lg mb-1 transition-transform"></i>
+        <span id="cabinetTabTitle" class="text-[10px] font-bold">Kabinet</span>
+      </button>
+
+      <button onclick="switchTab('ai')" class="nav-tab flex flex-col items-center justify-center py-1 text-slate-400 hover:text-white transition-all" data-tab="ai">
+        <i class="fa-solid fa-wand-magic-sparkles tab-icon text-lg mb-1 transition-transform"></i>
+        <span class="text-[10px] font-bold">AI Chat</span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- MODAL: SINOV DARSIGA YOZILISH -->
+  <div id="enrollModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden transition-opacity">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 text-slate-100 shadow-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="text-base font-extrabold text-white">Sinov Darsiga Yozilish</h3>
+          <p class="text-xs text-slate-400">Mutlaqo bepul, hech qanday to'lov talab etilmaydi</p>
+        </div>
+        <button onclick="closeEnrollModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="enrollForm" onsubmit="handleEnrollSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Tanlangan Yo'nalish</label>
+          <input type="text" id="modalCourseName" readonly class="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-bold text-indigo-400 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Ism va Familiyangiz</label>
+          <input type="text" id="modalUserName" required placeholder="Ism va familiyangiz" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Telefon Raqamingiz</label>
+          <input type="tel" id="modalUserPhone" required placeholder="+998 90 123 45 67" value="+998 " class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Qulay Dars Vaqti</label>
+          <select id="modalPreferredTime" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <option value="Ertalab (09:00 - 12:00)">Ertalab (09:00 - 12:00)</option>
+            <option value="Tushdan keyin (14:00 - 17:00)">Tushdan keyin (14:00 - 17:00)</option>
+            <option value="Kechki (18:30 - 20:30)" selected>Kechki (18:30 - 20:30)</option>
+          </select>
+        </div>
+
+        <button type="submit" id="modalSubmitBtn" class="w-full py-3 gradient-brand text-white font-bold rounded-xl text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 mt-2">
+          <span>Ariza Qoldirish</span> <i class="fa-solid fa-check"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SUCCESS MODAL -->
+  <div id="successModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-6 hidden">
+    <div class="glass-card rounded-3xl p-6 text-center max-w-sm w-full border border-emerald-500/30 shadow-2xl">
+      <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3 border border-emerald-500/30">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h3 class="text-lg font-black text-white mb-1.5">Arizangiz Qabul Qilindi!</h3>
+      <p class="text-xs text-slate-300 mb-5 leading-relaxed">
+        Ma'lumotlaringiz Google Sheets jadvaliga muvaffaqiyatli saqlandi. Tez orada siz bilan operatorimiz bog'lanadi.
+      </p>
+      <button onclick="closeSuccessModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-xl border border-white/10 active:scale-95">
+        Tushundim
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: TO'LOV CHEKINI YUKLASH (Masterplan 4-band) -->
+  <div id="receiptModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden transition-opacity">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 text-slate-100 shadow-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+            <i class="fa-solid fa-receipt text-emerald-400"></i> To'lov Chekini Yuklash
+          </h3>
+          <p class="text-xs text-slate-400">Click / Payme / Bank kvitansiyasini yuklang</p>
+        </div>
+        <button onclick="closeReceiptModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="receiptUploadForm" onsubmit="handleReceiptSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">To'lov miqdori</label>
+          <input type="text" id="receiptAmount" value="850 000 so'm" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-bold text-emerald-400 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">To'lov cheki rasmi (Screenshot)</label>
+          <input type="file" id="receiptFileInput" accept="image/*" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white">
+        </div>
+
+        <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300">
+          <i class="fa-solid fa-shield-halved mr-1"></i> Chekingiz bevosita bosh administratorga tasdiqlash uchun yuboriladi (Insoniy nazorat, xatolik 0%).
+        </div>
+
+        <button type="submit" id="btnReceiptSubmit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-paper-plane"></i> <span>Chekni Adminga Yuborish</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: MOCK TESTGA YOZILISH (Masterplan 9-band) -->
+  <div id="mockRegisterModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden transition-opacity">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 text-slate-100 shadow-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+            <i class="fa-solid fa-ticket text-indigo-400"></i> Mock Testga Yozilish
+          </h3>
+          <p class="text-xs text-slate-400">O'zingizga qulay smenani tanlang (Har smenada 20 ta joy)</p>
+        </div>
+        <button onclick="closeMockRegisterModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="mockRegisterForm" onsubmit="handleMockSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Ism va Familiyangiz</label>
+          <input type="text" id="mockUserName" required placeholder="Ism va familiyangiz" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Telefon Raqamingiz</label>
+          <input type="tel" id="mockUserPhone" required placeholder="+998 90 123 45 67" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Imtihon Smenasi</label>
+          <select id="mockShiftSelect" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+            <option value="1-smena (10:00 - 13:00)">1-smena (10:00 - 13:00) — Kunduzgi</option>
+            <option value="2-smena (14:00 - 17:00)">2-smena (14:00 - 17:00) — Tushdan keyin</option>
+          </select>
+        </div>
+
+        <button type="submit" id="btnMockSubmit" class="w-full py-3 gradient-brand text-white font-bold rounded-xl text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-ticket"></i> <span>Chiptani Rasmiylashtirish</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TAYYOR MOCK TEST CHIPTASI -->
+  <div id="mockTicketModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gradient-to-b from-slate-900 to-indigo-950 border border-indigo-500/40 rounded-3xl p-6 text-slate-100 shadow-2xl max-w-sm w-full relative overflow-hidden text-center">
+      
+      <div class="w-14 h-14 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3 shadow-lg">
+        <i class="fa-solid fa-qrcode"></i>
+      </div>
+
+      <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-extrabold uppercase tracking-widest border border-emerald-500/30 inline-block mb-2">
+        Tasdiqlangan Chipta
+      </span>
+
+      <h3 id="ticketNumberDisplay" class="text-2xl font-black text-white font-mono mb-1">#MOCK-001</h3>
+      <p class="text-xs text-slate-400 mb-4">Apex Academy Rasmiy IELTS Mock Imtihoni</p>
+
+      <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 text-left space-y-2 text-xs mb-4">
+        <div class="flex justify-between">
+          <span class="text-slate-400">Nomzod:</span>
+          <span id="ticketStudentName" class="font-bold text-white">O'quvchi</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Smena:</span>
+          <span id="ticketShift" class="font-bold text-indigo-300">1-smena (10:00 - 13:00)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Sana:</span>
+          <span class="font-bold text-emerald-400">Navbatdagi Shanba</span>
+        </div>
+        <div class="flex justify-between border-t border-white/5 pt-1.5">
+          <span class="text-slate-400">Manzil:</span>
+          <span class="font-semibold text-slate-300">Apex Academy Bosh Binosi</span>
+        </div>
+      </div>
+
+      <button onclick="closeMockTicketModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-xl shadow-md active:scale-95">
+        Saqlash va Yopish
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: MOCK TEST E'LON BERISH (USTOZ / ADMIN UCHUN) -->
+  <div id="mockPublishModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden transition-opacity">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 text-slate-100 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+            <i class="fa-solid fa-bullhorn text-purple-400"></i> Mock Test E'lon Berish
+          </h3>
+          <p class="text-xs text-slate-400">Imtihon ma'lumotlarini kiriting va o'quvchilarga e'lon qiling</p>
+        </div>
+        <button onclick="closeMockPublishModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="mockPublishForm" onsubmit="handleMockPublishSubmit(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Imtihon Nomi</label>
+          <input type="text" id="mockPubTitle" required value="Rasmiy IELTS Mock Imtihoni" placeholder="Masalan: Rasmiy IELTS Mock Imtihoni" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">O'tkazilish Sanasi</label>
+            <input type="text" id="mockPubDate" required value="Shanba, 10:00" placeholder="Masalan: Shanba, 10:00" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Imtihon To'lovi</label>
+            <input type="text" id="mockPubPrice" value="50 000 so'm" placeholder="50 000 so'm / Bepul" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500">
+          </div>
+        </div>
+
+        <!-- 1-smena -->
+        <div class="p-3 rounded-2xl bg-slate-800/60 border border-white/5 space-y-2">
+          <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">1-Smena Sozlamasi</span>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="col-span-2">
+              <label class="block text-[10px] text-slate-400 mb-0.5">Smena vaqti</label>
+              <input type="text" id="mockPubShift1Name" value="1-smena (10:00 - 13:00)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400 mb-0.5">Joylar soni</label>
+              <input type="number" id="mockPubShift1Slots" value="15" min="1" max="100" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white text-center focus:outline-none focus:border-emerald-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- 2-smena -->
+        <div class="p-3 rounded-2xl bg-slate-800/60 border border-white/5 space-y-2">
+          <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">2-Smena Sozlamasi</span>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="col-span-2">
+              <label class="block text-[10px] text-slate-400 mb-0.5">Smena vaqti</label>
+              <input type="text" id="mockPubShift2Name" value="2-smena (14:00 - 17:00)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400 mb-0.5">Joylar soni</label>
+              <input type="number" id="mockPubShift2Slots" value="10" min="1" max="100" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white text-center focus:outline-none focus:border-amber-500">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Tavsif & Imtihon Haqida</label>
+          <textarea id="mockPubDesc" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500">Har shanba xalqaro standartda 4 ta bo'lim (L, R, W, S) bo'yicha imtihon va 24 soatda tezkor baholash.</textarea>
+        </div>
+
+        <div class="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2.5">
+          <input type="checkbox" id="mockPubSendTelegram" checked class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-slate-600">
+          <label for="mockPubSendTelegram" class="text-xs text-purple-200 cursor-pointer">
+            Telegram kanalga marketing e'lonini ham yuborish 🚀
+          </label>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeMockPublishModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">
+            Bekor qilish
+          </button>
+          <button type="submit" id="btnSubmitMockPub" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg active:scale-95 flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-bullhorn"></i> E'lonni Chiqarish
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    const tg = window.Telegram?.WebApp;
+    let currentLang = 'uz';
+    let currentUserRole = 'student'; // 'student' or 'teacher'
+    let currentTeacherData = null;
+
+    // URL parametrlarni o'qish (Telegram bot kontakt yuborganda bergan parametrlar)
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramRole = urlParams.get('role');
+    const paramPhone = urlParams.get('phone');
+    const paramName = urlParams.get('name');
+
+    // Telegram WebApp Init
+    if (tg) {
+      try {
+        tg.expand();
+        tg.ready();
+      } catch (e) {}
+    }
+
+    // Sahifa yuklanganda ishga tushish
+    window.addEventListener('DOMContentLoaded', async () => {
+      // 1. Foydalanuvchi ismini chiqarish
+      let displayName = paramName || '';
+      if (!displayName && tg?.initDataUnsafe?.user) {
+        displayName = [tg.initDataUnsafe.user.first_name, tg.initDataUnsafe.user.last_name].filter(Boolean).join(' ') || tg.initDataUnsafe.user.username;
+      }
+      if (displayName) {
+        document.getElementById('userGreeting').textContent = `Salom, ${displayName}! 👋`;
+        document.getElementById('studentName').textContent = displayName;
+        document.getElementById('modalUserName').value = displayName;
+      }
+
+      // 2. Telefon raqamni to'ldirish
+      if (paramPhone) {
+        document.getElementById('modalUserPhone').value = paramPhone.startsWith('+') ? paramPhone : '+' + paramPhone;
+      }
+
+      // 3. Agar URL da yoki telefon bo'yicha o'qituvchi bo'lsa -> avtomatik tekshirish
+      if (paramRole === 'teacher' || paramPhone) {
+        try {
+          const res = await fetch(`/api/check-role?phone=${encodeURIComponent(paramPhone || '')}`);
+          const data = await res.json();
+          if (data.isTeacher) {
+            setupTeacherRole(data.teacher, data.isAdmin);
+            fetchCourses();
+            fetchMockSlots();
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // Agar o'quvchi bo'lsa
+      setupStudentRole();
+      fetchCourses();
+      fetchMockSlots();
+    });
+
+    function setupTeacherRole(teacher, isAdmin) {
+      currentUserRole = 'teacher';
+      currentTeacherData = teacher;
+
+      document.getElementById('roleBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1 animate-ping"></span> Ustoz Paneli';
+      document.getElementById('roleBadge').className = 'inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20';
+      document.getElementById('cabinetTabTitle').textContent = 'Ustoz Paneli';
+
+      document.getElementById('dashTeacherName').textContent = teacher.name;
+      document.getElementById('dashTeacherRole').textContent = `${teacher.role}`;
+      const courseName = teacher.assignedCourse || 'IELTS Intensive';
+      document.getElementById('dashTeacherCourse').textContent = courseName;
+      document.getElementById('currentCourseLabel').textContent = courseName;
+
+      // O'qituvchi bo'lganda Kurslar sahifasida BEGONA KURSLARNI YASHIRISH (Faqat o'z kursi ko'rinadi)
+      if (!isAdmin) {
+        filterTeacherCoursesOnly(courseName);
+      }
+
+      // Bosh admin bo'lmasa "Ustozlar" boshqaruvini yashirish, admin bo'lsa ko'rsatish
+      const btnTeachers = document.getElementById('btnSubTabTeachers');
+      if (isAdmin) {
+        btnTeachers.classList.remove('hidden');
+      } else {
+        btnTeachers.classList.add('hidden');
+      }
+
+      // To'g'ridan-to'g'ri Ustoz Dashboardiga o'tkazish
+      switchCabinetRole('teacher');
+      fetchTeacherLeads();
+      fetchTeacherGroups();
+      if (isAdmin) fetchTeachersList();
+    }
+
+    // O'qituvchiga faqat o'z kursini ko'rsatish
+    function filterTeacherCoursesOnly(assignedCourse) {
+      const lower = assignedCourse.toLowerCase();
+      document.querySelectorAll('.course-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(lower) || (lower.includes('ielts') && text.includes('ielts'))) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    }
+
+    function setupStudentRole() {
+      currentUserRole = 'student';
+      // O'quvchi bo'lsa, "Ustoz & Admin Paneli" tugmasini yashiramiz (xavfsizlik!)
+      document.getElementById('btnRoleTeacher').classList.add('hidden');
+      document.getElementById('cabinetRoleBar').className = 'p-1 bg-slate-900 rounded-2xl border border-white/10 hidden';
+    }
+
+    // Tab Navigation
+    function switchTab(tabId) {
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-tab').forEach(el => {
+        el.classList.remove('active', 'text-indigo-400');
+        el.classList.add('text-slate-400');
+      });
+
+      const targetTab = document.getElementById(`tab-${tabId}`);
+      if (targetTab) targetTab.classList.remove('hidden');
+
+      const navBtn = document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
+      if (navBtn) {
+        navBtn.classList.add('active', 'text-indigo-400');
+        navBtn.classList.remove('text-slate-400');
+      }
+    }
+
+    // Filter Courses
+    function filterCourses(category) {
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+
+      document.querySelectorAll('.course-filter').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'text-white');
+        btn.classList.add('bg-slate-800/80', 'text-slate-300');
+      });
+      event.currentTarget.classList.remove('bg-slate-800/80', 'text-slate-300');
+      event.currentTarget.classList.add('bg-indigo-600', 'text-white');
+
+      const items = document.querySelectorAll('.course-item');
+      items.forEach(item => {
+        if (category === 'all' || item.dataset.category === category) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    }
+
+    // Switch Role in Cabinet
+    function switchCabinetRole(role) {
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+
+      const btnStudent = document.getElementById('btnRoleStudent');
+      const btnTeacher = document.getElementById('btnRoleTeacher');
+      const viewStudent = document.getElementById('viewStudent');
+      const viewTeacher = document.getElementById('viewTeacher');
+
+      if (role === 'student') {
+        btnStudent.className = 'flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all';
+        btnTeacher.className = 'flex-1 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all';
+        viewStudent.classList.remove('hidden');
+        viewTeacher.classList.add('hidden');
+      } else {
+        btnTeacher.className = 'flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all';
+        btnStudent.className = 'flex-1 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all';
+        viewTeacher.classList.remove('hidden');
+        viewStudent.classList.add('hidden');
+      }
+    }
+
+    function handleTeacherLogout() {
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+      switchCabinetRole('student');
+    }
+
+    function switchTeacherSubTab(tab) {
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+      const btnLeads = document.getElementById('btnSubTabLeads');
+      const btnAttend = document.getElementById('btnSubTabAttend');
+      const btnSMM = document.getElementById('btnSubTabSMM');
+      const btnDirector = document.getElementById('btnSubTabDirector');
+      const btnTeachers = document.getElementById('btnSubTabTeachers');
+      const btnCourses = document.getElementById('btnSubTabCourses');
+
+      const viewLeads = document.getElementById('teacherLeadsView');
+      const viewAttend = document.getElementById('teacherAttendView');
+      const viewCourses = document.getElementById('teacherCoursesView');
+      const viewSMM = document.getElementById('teacherSMMView');
+      const viewDirector = document.getElementById('teacherDirectorView');
+      const viewTeachers = document.getElementById('teacherManagementView');
+
+      [btnLeads, btnAttend, btnCourses, btnSMM, btnDirector, btnTeachers].forEach(b => {
+        if (b) b.className = 'py-2 rounded-xl text-slate-400 hover:text-white';
+      });
+      [viewLeads, viewAttend, viewCourses, viewSMM, viewDirector, viewTeachers].forEach(v => {
+        if (v) v.classList.add('hidden');
+      });
+
+      if (tab === 'leads') {
+        btnLeads.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
+        viewLeads.classList.remove('hidden');
+        fetchTeacherLeads();
+      } else if (tab === 'attend') {
+        btnAttend.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
+        viewAttend.classList.remove('hidden');
+      } else if (tab === 'courses') {
+        if (btnCourses) btnCourses.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
+        if (viewCourses) viewCourses.classList.remove('hidden');
+        fetchCourses();
+        fetchMockSlots();
+      } else if (tab === 'smm') {
+        btnSMM.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
+        viewSMM.classList.remove('hidden');
+      } else if (tab === 'director') {
+        btnDirector.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
+        viewDirector.classList.remove('hidden');
+        fetchDirectorReport();
+      } else if (tab === 'teachers') {
+        btnTeachers.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
+        viewTeachers.classList.remove('hidden');
+        fetchTeachersList();
+      }
+    }
+
+    // Fetch live leads for Teacher Admin Panel (Filtered by Teacher's Course)
+    async function fetchTeacherLeads() {
+      const container = document.getElementById('leadsListContainer');
+      const badge = document.getElementById('leadsCountBadge');
+      container.innerHTML = '<div class="p-4 text-center text-xs text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-1.5"></i> Yuklanmoqda...</div>';
+
+      try {
+        const query = currentTeacherData?.phone ? `?phone=${encodeURIComponent(currentTeacherData.phone)}` : '';
+        const res = await fetch(`/api/leads${query}`);
+        const data = await res.json();
+        const leads = data.leads || [];
+
+        badge.textContent = leads.length;
+
+        if (leads.length === 0) {
+          container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Sizning kursingiz bo\'yicha hozircha arizalar mavjud emas</div>';
+          return;
+        }
+
+        container.innerHTML = '';
+        leads.forEach((l) => {
+          const div = document.createElement('div');
+          div.className = 'p-3.5 rounded-xl bg-slate-900/90 border border-white/5 space-y-2';
+
+          const timeFormatted = l.receivedAt ? new Date(l.receivedAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : '';
+          const dateFormatted = l.receivedAt ? new Date(l.receivedAt).toLocaleDateString('uz-UZ') : '';
+
+          div.innerHTML = `
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                  ${l.course || 'Kurs ko\'rsatilmagan'}
+                </span>
+                <h5 class="text-xs font-bold text-white mt-1">${l.name || 'Ism kiritilmagan'}</h5>
+              </div>
+              <span class="text-[10px] text-slate-400 font-mono">${dateFormatted} ${timeFormatted}</span>
+            </div>
+            <div class="flex items-center justify-between text-xs pt-1 border-t border-white/5 text-slate-300">
+              <span class="text-[11px]"><i class="fa-regular fa-clock text-amber-400 mr-1"></i>${l.preferredTime || 'Kechki'}</span>
+              <a href="tel:${l.phone}" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1 active:scale-95">
+                <i class="fa-solid fa-phone"></i> ${l.phone || 'Qo\'ng\'iroq'}
+              </a>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      } catch (err) {
+        container.innerHTML = '<div class="p-4 text-center text-xs text-rose-400">Lidlarni yuklashda xatolik yuz berdi</div>';
+      }
+    }
+
+    // Guruhlarni yuklash va davomat
+    async function fetchTeacherGroups() {
+      const container = document.getElementById('teacherGroupsContainer');
+      container.innerHTML = '<div class="p-3 text-center text-xs text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Guruhlaringiz yuklanmoqda...</div>';
+
+      try {
+        const query = currentTeacherData?.phone ? `?phone=${encodeURIComponent(currentTeacherData.phone)}` : '';
+        const res = await fetch(`/api/groups${query}`);
+        const data = await res.json();
+        const groups = data.groups || [];
+
+        if (groups.length === 0) {
+          container.innerHTML = '<div class="p-4 text-center text-xs text-slate-400">Sizda hali ochilgan guruhlar yo\'q. Yuqoridagi formadan yangi guruh ochishingiz mumkin.</div>';
+          return;
+        }
+
+        container.innerHTML = '';
+        groups.forEach(g => {
+          const div = document.createElement('div');
+          div.className = 'p-3.5 rounded-2xl bg-slate-900 border border-white/10 space-y-3';
+          
+          let studentsHtml = '';
+          const students = g.students && g.students.length > 0 ? g.students : [];
+          if (students.length === 0) {
+            studentsHtml = '<p class="text-xs text-slate-500 py-2 text-center italic">Guruhda hali o\'quvchilar yo\'q</p>';
+          }
+
+          students.forEach(s => {
+            studentsHtml += `
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/5 text-xs">
+                <div>
+                  <div class="font-bold text-white">${s.name}</div>
+                  <div class="text-[10px] text-slate-400">${s.phone}</div>
+                </div>
+                <button onclick="toggleAttendance(this)" class="attend-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <i class="fa-solid fa-check mr-1"></i> Keldi
+                </button>
+              </div>
+            `;
+          });
+
+          div.innerHTML = `
+            <div class="flex items-center justify-between border-b border-white/5 pb-2">
+              <div>
+                <span class="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">${g.days || 'Dush-Chor-Jum'} • ${g.time || '18:30'}</span>
+                <h4 class="text-sm font-extrabold text-white mt-1">${g.name}</h4>
+              </div>
+              <button onclick="handleDeleteGroup(${g.id})" class="text-slate-500 hover:text-rose-400 p-1.5 text-xs">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+            <div class="space-y-1.5">
+              ${studentsHtml}
+            </div>
+            <button onclick="saveAttendance()" class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-xs text-white active:scale-95 flex items-center justify-center gap-1.5 shadow-md">
+              <i class="fa-solid fa-clipboard-check"></i> Guruh Davomatini Saqlash
+            </button>
+          `;
+          container.appendChild(div);
+        });
+      } catch (err) {
+        container.innerHTML = '<div class="text-xs text-rose-400">Guruhlarni yuklashda xatolik</div>';
+      }
+    }
+
+    // Yangi guruh ochish formasi
+    async function handleCreateGroup(e) {
+      e.preventDefault();
+      const name = document.getElementById('newGroupName').value.trim();
+      const days = document.getElementById('newGroupDays').value;
+      const time = document.getElementById('newGroupTime').value.trim();
+
+      const payload = {
+        name,
+        days,
+        time,
+        course: currentTeacherData?.assignedCourse || 'IELTS Intensive',
+        teacherPhone: currentTeacherData?.phone || '',
+        teacherName: currentTeacherData?.name || 'Ustoz'
+      };
+
+      try {
+        const res = await fetch('/api/groups/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ Yangi guruh ochildi: ${name}!`);
+          document.getElementById('createGroupForm').reset();
+          fetchTeacherGroups();
+        } else {
+          alert('Xatolik: ' + data.message);
+        }
+      } catch (e) {
+        alert('Server bilan aloqa xatosi');
+      }
+    }
+
+    async function handleDeleteGroup(id) {
+      if (!confirm('Ushbu guruhni o\'chirmoqchimisiz?')) return;
+      try {
+        await fetch(`/api/groups/${id}`, { method: 'DELETE' });
+        fetchTeacherGroups();
+      } catch(e) {}
+    }
+
+    // Fetch and Manage Teachers List
+    async function fetchTeachersList() {
+      const container = document.getElementById('teachersListContainer');
+      container.innerHTML = '<div class="p-3 text-center text-xs text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Yuklanmoqda...</div>';
+
+      try {
+        const res = await fetch('/api/teachers');
+        const data = await res.json();
+        const teachers = data.teachers || [];
+
+        container.innerHTML = '';
+        teachers.forEach(t => {
+          const div = document.createElement('div');
+          div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5 text-xs';
+          div.innerHTML = `
+            <div>
+              <div class="font-bold text-white">${t.name}</div>
+              <div class="text-[10px] text-indigo-400">${t.phone} • ${t.group || t.role}</div>
+            </div>
+            <button onclick="handleDeleteTeacher(${t.id})" class="text-slate-500 hover:text-rose-400 p-1.5 text-xs">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          `;
+          container.appendChild(div);
+        });
+      } catch (e) {
+        container.innerHTML = '<div class="text-xs text-rose-400">Ustozlar ro\'yxatini yuklab bo\'lmadi</div>';
+      }
+    }
+
+    async function handleAddTeacher(e) {
+      e.preventDefault();
+      const name = document.getElementById('newTeacherName').value.trim();
+      const phone = document.getElementById('newTeacherPhone').value.trim();
+      const group = document.getElementById('newTeacherGroup').value.trim();
+
+      try {
+        const res = await fetch('/api/teachers/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, group, role: 'Ustoz' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ Ustoz ${name} muvaffaqiyatli qo'shildi! Endi u botga /start bosishi bilan unga Ustoz Paneli ochiladi.`);
+          document.getElementById('addTeacherForm').reset();
+          fetchTeachersList();
+        } else {
+          alert('❌ Xato: ' + (data.message || 'Saqlab bo\'lmadi'));
+        }
+      } catch (err) {
+        alert('Server bilan aloqa xatosi');
+      }
+    }
+
+    async function handleDeleteTeacher(id) {
+      if (!confirm('Haqiqatan ham bu o\'qituvchini o\'chirmoqchimisiz?')) return;
+      try {
+        await fetch(`/api/teachers/${id}`, { method: 'DELETE' });
+        fetchTeachersList();
+      } catch (e) {}
+    }
+
+    // Teacher Attendance Toggle
+    function toggleAttendance(btn) {
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      const isPresent = btn.classList.contains('bg-emerald-500/20');
+      if (isPresent) {
+        btn.className = 'attend-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30';
+        btn.innerHTML = '<i class="fa-solid fa-xmark mr-1"></i> Kelmadi (❌)';
+      } else {
+        btn.className = 'attend-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Keldi';
+      }
+    }
+
+    async function saveAttendance() {
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      
+      const attendButtons = document.querySelectorAll('#teacherGroupsContainer .attend-btn');
+      const absentStudents = [];
+      const presentStudents = [];
+
+      attendButtons.forEach(btn => {
+        const studentCard = btn.closest('.flex.items-center.justify-between');
+        const sName = studentCard?.querySelector('.font-bold')?.textContent?.trim() || "O'quvchi";
+        const sPhone = studentCard?.querySelector('.text-slate-400')?.textContent?.trim() || "";
+
+        if (btn.textContent.includes('Kelmadi')) {
+          absentStudents.push({ name: sName, phone: sPhone });
+        } else {
+          presentStudents.push({ name: sName, phone: sPhone });
+        }
+      });
+
+      try {
+        await fetch('/api/attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groupName: currentTeacherData?.group || 'IELTS 18:30 (Kechki)',
+            teacherName: currentTeacherData?.name || 'Ustoz',
+            date: new Date().toLocaleDateString('uz-UZ'),
+            absentStudents,
+            presentStudents
+          })
+        });
+      } catch (e) {}
+
+      alert(`✅ Davomat saqlandi!\n\n${absentStudents.length > 0 ? `⚠️ Darsga kelmagan ${absentStudents.length} ta o'quvchining ota-onasiga Telegram bot orqali bepul xabarnoma yuborildi (0 so'm, SMS siz!).` : "🎉 Barcha o'quvchilar darsga to'liq qatnashdi!"}`);
+    }
+
+    // --- TO'LOV CHEKINI YUKLASH (Masterplan 4-band) ---
+    function openReceiptModal() {
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      document.getElementById('receiptModal').classList.remove('hidden');
+    }
+
+    function closeReceiptModal() {
+      document.getElementById('receiptModal').classList.add('hidden');
+    }
+
+    function handleReceiptSubmit(e) {
+      e.preventDefault();
+      const amount = document.getElementById('receiptAmount').value;
+      const fileInput = document.getElementById('receiptFileInput');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert('Iltimos to\'lov cheki rasmini tanlang!');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async function() {
+        const base64Image = reader.result;
+        const studentName = document.getElementById('studentName')?.textContent?.trim() || 'O\'quvchi';
+        const studentPhone = paramPhone || '+998959011445';
+
+        const btn = document.getElementById('btnReceiptSubmit');
+        btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Yuborilmoqda...';
+        btn.disabled = true;
+
+        try {
+          const res = await fetch('/api/receipts/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              studentName,
+              studentPhone,
+              course: 'IELTS Intensive',
+              amount,
+              receiptImage: base64Image,
+              chatId: tg?.initDataUnsafe?.user?.id || null
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            closeReceiptModal();
+            document.getElementById('receiptStatusBadge').classList.remove('hidden');
+            alert(`✅ To'lov chekingiz (#${data.receiptId}) muvaffaqiyatli qabul qilindi!\n\nBosh administrator tekshirib tasdiqlashi bilan profilingizdagi status "To'landi"ga o'zgaradi va Telegramingizga xabar keladi.`);
+          }
+        } catch (err) {
+          alert('Chekni yuborishda xatolik yuz berdi');
+        } finally {
+          btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Chekni Adminga Yuborish</span>';
+          btn.disabled = false;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // --- MOCK TEST (Masterplan 9-band) ---
+    function openMockRegisterModal() {
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      document.getElementById('mockUserName').value = document.getElementById('studentName')?.textContent?.trim() || '';
+      document.getElementById('mockUserPhone').value = paramPhone || '+998 ';
+      document.getElementById('mockRegisterModal').classList.remove('hidden');
+    }
+
+    function closeMockRegisterModal() {
+      document.getElementById('mockRegisterModal').classList.add('hidden');
+    }
+
+    function closeMockTicketModal() {
+      document.getElementById('mockTicketModal').classList.add('hidden');
+    }
+
+    async function handleMockSubmit(e) {
+      e.preventDefault();
+      const studentName = document.getElementById('mockUserName').value;
+      const studentPhone = document.getElementById('mockUserPhone').value;
+      const shift = document.getElementById('mockShiftSelect').value;
+
+      const btn = document.getElementById('btnMockSubmit');
+      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Chipta yaratilmoqda...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/mock/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentName, studentPhone, shift })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeMockRegisterModal();
+          document.getElementById('ticketNumberDisplay').textContent = data.ticketNumber;
+          document.getElementById('ticketStudentName').textContent = studentName;
+          document.getElementById('ticketShift').textContent = shift;
+          document.getElementById('mockTicketModal').classList.remove('hidden');
+          fetchMockSlots();
+        }
+      } catch (err) {
+        alert('Mock testga yozilishda xatolik');
+      } finally {
+        btn.innerHTML = '<i class="fa-solid fa-ticket"></i> <span>Chiptani Rasmiylashtirish</span>';
+        btn.disabled = false;
+      }
+    }
+
+    let currentMockConfig = null;
+
+    async function fetchMockSlots() {
+      try {
+        const res = await fetch('/api/mock/slots');
+        const data = await res.json();
+        currentMockConfig = data;
+        const banner = document.getElementById('mockBannerSection');
+        const adminBadge = document.getElementById('adminMockStatusBadge');
+        const adminBox = document.getElementById('mockAdminActionBox');
+
+        if (data.success && data.isOpen) {
+          if (banner) banner.classList.remove('hidden');
+          const titleEl = document.getElementById('mockBannerTitle');
+          const descEl = document.getElementById('mockBannerDesc');
+          const dateEl = document.getElementById('mockBannerDate');
+          const priceEl = document.getElementById('mockBannerPrice');
+          const sh1NameEl = document.getElementById('mockShift1Name');
+          const sh2NameEl = document.getElementById('mockShift2Name');
+
+          if (titleEl && data.title) titleEl.textContent = data.title;
+          if (descEl && data.description) descEl.textContent = data.description;
+          if (dateEl && data.date) dateEl.textContent = data.date;
+          if (priceEl && data.price) priceEl.textContent = data.price;
+          if (sh1NameEl && data.shift1?.name) sh1NameEl.textContent = data.shift1.name;
+          if (sh2NameEl && data.shift2?.name) sh2NameEl.textContent = data.shift2.name;
+
+          const s1 = document.getElementById('mockShift1Slots');
+          const s2 = document.getElementById('mockShift2Slots');
+          if (s1 && data.shift1) s1.textContent = `${data.shift1.remaining} ta joy qoldi`;
+          if (s2 && data.shift2) s2.textContent = `${data.shift2.remaining} ta joy qoldi`;
+
+          if (adminBadge) {
+            adminBadge.className = 'text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+            adminBadge.textContent = 'Ochiq (Faol)';
+          }
+          if (adminBox) {
+            adminBox.innerHTML = `
+              <div class="p-3 rounded-2xl bg-slate-900 border border-white/5 space-y-2 text-xs">
+                <div class="flex justify-between items-center">
+                  <span class="text-white font-bold">${data.title || "IELTS Mock Imtihoni"}</span>
+                  <span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> E'lon Qilingan</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+                  <div>📅 ${data.date || "Belgilanmagan"}</div>
+                  <div>💰 ${data.price || "50 000 so'm"}</div>
+                </div>
+                <div class="p-2 rounded-xl bg-slate-800/60 text-[11px] text-indigo-300 flex justify-between">
+                  <span>1-smena: ${data.shift1?.booked || 0}/${data.shift1?.total || 15} band</span>
+                  <span>2-smena: ${data.shift2?.booked || 0}/${data.shift2?.total || 10} band</span>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="openMockPublishModal(true)" class="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md active:scale-95 flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-pen-to-square"></i> Tahrirlash
+                </button>
+                <button onclick="handleToggleMockExam(false)" class="py-2.5 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white font-bold text-xs shadow-md active:scale-95 flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-eye-slash"></i> Yopish (Yashirish)
+                </button>
+              </div>
+            `;
+          }
+        } else {
+          if (banner) banner.classList.add('hidden');
+          if (adminBadge) {
+            adminBadge.className = 'text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400 border border-slate-700';
+            adminBadge.textContent = 'Yopiq (Yashirin)';
+          }
+          if (adminBox) {
+            adminBox.innerHTML = `
+              <div class="p-3 rounded-2xl bg-slate-900/60 border border-white/5 text-xs text-slate-400 text-center">
+                Mock test hozir yopiq va o'quvchilarga ko'rinmaydi.
+              </div>
+              <button onclick="openMockPublishModal(false)" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md active:scale-95 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-bullhorn"></i> Yangi Mock Test E'lonini Yaratish & Ochish
+              </button>
+            `;
+          }
+        }
+      } catch (e) {
+        const banner = document.getElementById('mockBannerSection');
+        if (banner) banner.classList.add('hidden');
+      }
+    }
+
+    function openMockPublishModal(isEdit = false) {
+      if (isEdit && currentMockConfig) {
+        if (currentMockConfig.title) document.getElementById('mockPubTitle').value = currentMockConfig.title;
+        if (currentMockConfig.date) document.getElementById('mockPubDate').value = currentMockConfig.date;
+        if (currentMockConfig.price) document.getElementById('mockPubPrice').value = currentMockConfig.price;
+        if (currentMockConfig.description) document.getElementById('mockPubDesc').value = currentMockConfig.description;
+        if (currentMockConfig.shift1?.name) document.getElementById('mockPubShift1Name').value = currentMockConfig.shift1.name;
+        if (currentMockConfig.shift1?.total) document.getElementById('mockPubShift1Slots').value = currentMockConfig.shift1.total;
+        if (currentMockConfig.shift2?.name) document.getElementById('mockPubShift2Name').value = currentMockConfig.shift2.name;
+        if (currentMockConfig.shift2?.total) document.getElementById('mockPubShift2Slots').value = currentMockConfig.shift2.total;
+      }
+      document.getElementById('mockPublishModal').classList.remove('hidden');
+    }
+
+    function closeMockPublishModal() {
+      document.getElementById('mockPublishModal').classList.add('hidden');
+    }
+
+    async function handleMockPublishSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitMockPub');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> E\'lon qilinmoqda...';
+
+      const payload = {
+        title: document.getElementById('mockPubTitle').value.trim(),
+        date: document.getElementById('mockPubDate').value.trim(),
+        price: document.getElementById('mockPubPrice').value.trim(),
+        description: document.getElementById('mockPubDesc').value.trim(),
+        shift1Name: document.getElementById('mockPubShift1Name').value.trim(),
+        shift1Slots: document.getElementById('mockPubShift1Slots').value,
+        shift2Name: document.getElementById('mockPubShift2Name').value.trim(),
+        shift2Slots: document.getElementById('mockPubShift2Slots').value,
+        sendTelegram: document.getElementById('mockPubSendTelegram').checked
+      };
+
+      try {
+        const res = await fetch('/api/mock/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ Mock test e\'loni muvaffaqiyatli berildi va o\'quvchilarga ko\'rsatildi!');
+          closeMockPublishModal();
+          fetchMockSlots();
+        } else {
+          alert('Xatolik: ' + data.message);
+        }
+      } catch (err) {
+        alert('Server bilan aloqa xatosi');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-bullhorn"></i> E\'lonni Chiqarish';
+      }
+    }
+
+    async function handleToggleMockExam(isOpen) {
+      try {
+        const res = await fetch('/api/mock/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isOpen })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(isOpen ? '✅ Mock test ochildi va o\'quvchilarga ko\'rsatildi!' : '🔒 Mock test yopildi va yashirildi!');
+          fetchMockSlots();
+        }
+      } catch (e) {
+        alert('Server bilan aloqa xatosi');
+      }
+    }
+
+    // --- DINAMIK KURSLAR BOSHQARUVI ---
+    let allCoursesData = [];
+
+    async function fetchCourses() {
+      try {
+        const res = await fetch('/api/courses');
+        const data = await res.json();
+        allCoursesData = data.courses || [];
+
+        renderPublicCourses(allCoursesData);
+        renderAdminCourses(allCoursesData);
+      } catch (e) {
+        console.error('Kurslarni yuklashda xatolik:', e);
+      }
+    }
+
+    function renderPublicCourses(courses) {
+      const container = document.getElementById('coursesContainer');
+      const homeSection = document.getElementById('homeCoursesSection');
+      const homeContainer = document.getElementById('homeCoursesContainer');
+
+      if (!container) return;
+
+      if (courses.length === 0) {
+        container.innerHTML = `
+          <div class="glass-card rounded-2xl p-6 text-center text-slate-400">
+            <i class="fa-solid fa-graduation-cap text-3xl mb-2 text-indigo-400/50 block"></i>
+            <div class="text-sm font-bold text-white mb-1">Hozircha faol kurslar mavjud emas</div>
+            <p class="text-xs text-slate-500">Yaqin kunlarda yangi kurslar e'lon qilinadi!</p>
+          </div>
+        `;
+        if (homeSection) homeSection.classList.add('hidden');
+        return;
+      }
+
+      if (homeSection) homeSection.classList.remove('hidden');
+
+      // Tab 2 Kurslar Katalogi
+      container.innerHTML = '';
+      courses.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'course-item glass-card rounded-2xl p-4 glass-card-hover';
+        card.setAttribute('data-category', c.category || 'other');
+        
+        const badgeHtml = c.badge ? `<span class="text-[10px] uppercase font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/20">${c.badge}</span>` : `<span class="text-[10px] uppercase font-bold text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded-md border border-indigo-400/20">${c.category === 'english' ? 'Ingliz tili' : c.category === 'it' ? 'IT' : c.category === 'exact' ? 'Matematika' : 'Kurs'}</span>`;
+
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              ${badgeHtml}
+              <h4 class="text-base font-bold text-white mt-1">${c.name}</h4>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-black text-indigo-400">${c.price || ""}</div>
+              <div class="text-[10px] text-slate-400">so'm / oy</div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-300 mb-3">${c.description || ""}</p>
+          ${c.schedule ? `<div class="text-[11px] text-slate-400 mb-2.5 flex items-center gap-1.5"><i class="fa-regular fa-clock text-indigo-400"></i> ${c.schedule}</div>` : ''}
+          <button onclick="openEnrollModal('${c.name}')" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-xs text-white shadow-md active:scale-95">
+            Sinov Darsiga Yozilish
+          </button>
+        `;
+        container.appendChild(card);
+      });
+
+      // Bosh sahifadagi ommabop kurslar
+      if (homeContainer) {
+        homeContainer.innerHTML = '';
+        courses.slice(0, 3).forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'glass-card rounded-2xl p-4 glass-card-hover cursor-pointer';
+          div.onclick = () => openEnrollModal(c.name);
+          div.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <span class="text-[10px] uppercase font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/20">
+                  ${c.badge || "Tavsiya ⭐"}
+                </span>
+                <h4 class="text-base font-bold text-white mt-1">${c.name}</h4>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-black text-indigo-400">${c.price || ""}</div>
+                <div class="text-[10px] text-slate-400">so'm / oy</div>
+              </div>
+            </div>
+            <p class="text-xs text-slate-300 mb-3">${c.description || ""}</p>
+            <div class="flex items-center justify-between pt-2 border-t border-white/5 text-xs text-slate-400">
+              <span class="flex items-center gap-1.5"><i class="fa-regular fa-calendar-days text-indigo-400"></i>${c.schedule || "Moslashuvchan"}</span>
+              <span class="text-xs font-bold text-indigo-400 flex items-center gap-1">Yozilish <i class="fa-solid fa-chevron-right text-[10px]"></i></span>
+            </div>
+          `;
+          homeContainer.appendChild(div);
+        });
+      }
+    }
+
+    function renderAdminCourses(courses) {
+      const list = document.getElementById('adminCoursesList');
+      if (!list) return;
+
+      if (courses.length === 0) {
+        list.innerHTML = `<div class="p-4 text-center text-xs text-slate-500 italic">Hozircha kurslar mavjud emas. Yuqoridagi formadan yangi kurs qo'shing.</div>`;
+        return;
+      }
+
+      list.innerHTML = '';
+      courses.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-white/5 text-xs';
+        item.innerHTML = `
+          <div>
+            <div class="font-bold text-white">${c.name}</div>
+            <div class="text-[10px] text-indigo-300">${c.price || ""} | ${c.schedule || "Vaqt ko'rsatilmagan"}</div>
+          </div>
+          <button onclick="handleDeleteCourse(${c.id})" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    async function handleAddCourse(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnAddCourseSubmit');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Saqlanmoqda...';
+
+      const payload = {
+        name: document.getElementById('newCourseName').value.trim(),
+        category: document.getElementById('newCourseCategory').value,
+        price: document.getElementById('newCoursePrice').value.trim(),
+        schedule: document.getElementById('newCourseSchedule').value.trim(),
+        badge: document.getElementById('newCourseBadge').value.trim(),
+        description: document.getElementById('newCourseDesc').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/courses/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ Yangi kurs e'lon qilindi: ${payload.name}!`);
+          document.getElementById('addCourseForm').reset();
+          fetchCourses();
+        } else {
+          alert('Xatolik: ' + data.message);
+        }
+      } catch (err) {
+        alert('Server bilan aloqa xatosi');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-plus"></i> Kursni E\'lon Qilish';
+      }
+    }
+
+    async function handleDeleteCourse(id) {
+      if (!confirm('Haqiqatan ham bu kursni o\'chirmoqchimisiz?')) return;
+      try {
+        const res = await fetch('/api/courses/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          fetchCourses();
+        }
+      } catch (e) {
+        alert('O\'chirishda xatolik');
+      }
+    }
+
+    // --- AUTO-SMM (Masterplan 8-band) ---
+    let currentSmmPostText = '';
+    async function handleGenerateSMM() {
+      const btn = document.getElementById('btnGenerateSMM');
+      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> AI Post Tayyorlamoqda...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/smm/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            course: document.getElementById('smmCourse').value,
+            teacher: document.getElementById('smmTeacher').value,
+            time: document.getElementById('smmTime').value,
+            discount: document.getElementById('smmDiscount').value
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentSmmPostText = data.postText;
+          document.getElementById('smmPreviewText').innerHTML = data.postText;
+          document.getElementById('smmPreviewCard').classList.remove('hidden');
+        }
+      } catch (e) {
+        alert('SMM post yaratishda xatolik');
+      } finally {
+        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>AI Marketing Postini Yaratish</span>';
+        btn.disabled = false;
+      }
+    }
+
+    async function handlePublishSMM() {
+      const btn = document.getElementById('btnPublishSMM');
+      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Kanalga yuborilmoqda...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/smm/post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postText: currentSmmPostText })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('🚀 Post Telegram kanalga muvaffaqiyatli chiqarildi! O\'quvchilar post ostidagi [Kursga Yozilish] tugmasi orqali to\'g\'ridan-to\'g\'ri ro\'yxatdan o\'tishadi.');
+        }
+      } catch (e) {
+        alert('Kanalga post qilishda xatolik');
+      } finally {
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kanalga Chiqarish 🚀 (Inline Tugma Bilan)</span>';
+        btn.disabled = false;
+      }
+    }
+
+    // --- DIREKTOR OYLIK HISOBOTI (Masterplan 7-band) ---
+    async function fetchDirectorReport() {
+      try {
+        const res = await fetch('/api/director/report');
+        const data = await res.json();
+        if (data.success && data.report) {
+          const r = data.report;
+          document.getElementById('repTotalLeads').textContent = `${r.totalLeads} ta`;
+          document.getElementById('repTotalRevenue').textContent = r.estimatedRevenue;
+          document.getElementById('repActiveGroups').textContent = `${r.activeGroups} ta`;
+          document.getElementById('repMockCount').textContent = `${r.mockAttendees !== undefined ? r.mockAttendees : 0} ta`;
+          document.getElementById('repAiSummary').innerHTML = r.aiSummary;
+        }
+      } catch (e) {}
+    }
+
+    function handlePayment(provider) {
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      alert(`💳 ${provider} to'lov tizimiga yo'naltirilmoqda... Summa: 850 000 so'm`);
+    }
+
+    // Modal Control
+    function openEnrollModal(courseName) {
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      document.getElementById('modalCourseName').value = courseName;
+      document.getElementById('enrollModal').classList.remove('hidden');
+    }
+
+    function closeEnrollModal() {
+      document.getElementById('enrollModal').classList.add('hidden');
+    }
+
+    // Enroll Submit
+    function handleEnrollSubmit(e) {
+      e.preventDefault();
+      const course = document.getElementById('modalCourseName').value;
+      const name = document.getElementById('modalUserName').value;
+      const phone = document.getElementById('modalUserPhone').value;
+      const time = document.getElementById('modalPreferredTime').value;
+
+      const payload = {
+        action: 'enrollment',
+        course,
+        name,
+        phone,
+        preferredTime: time,
+        date: new Date().toISOString()
+      };
+
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+      fetch('/api/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(e => console.log('API save err:', e));
+
+      closeEnrollModal();
+      document.getElementById('successModal').classList.remove('hidden');
+    }
+
+    function closeSuccessModal() {
+      document.getElementById('successModal').classList.add('hidden');
+    }
+
+    // Smart AI Chat with Auto-Enrollment & Google Sheets Integration
+    const aiKnowledge = {
+      ielts: "🇬🇧 IELTS Intensive kursimiz 3 oyga mo'ljallangan. Darslar haftasiga 3 marta 2 soatdan bo'lib o'tadi. Har shanba kuni bepul Mock imtihon bo'ladi. Oylik to'lov 850 000 so'm. O'qituvchimiz malakali xalqaro sertifikatli ustoz. Sinov darsiga yozilish uchun telefon raqamingizni yozib qoldiring!",
+      it: "💻 IT yo'nalishimizda Frontend (React) va Python Django kurslari mavjud. Darslar amaliy loyihalar ustida o'tiladi. Oylik to'lov 850 000 - 900 000 so'm. Sinov darsiga yozilish uchun telefon raqamingizni yozib qoldiring!",
+      bepul: "🎁 Birinchi sinov darsi bizda barcha kurslar uchun MUTLAQO BEPUL! Yozilish uchun telefon raqamingizni shu yerga yozing yoki pastdagi 'Sinov Darsiga Yozilish' tugmasini bosing.",
+      manzil: "📍 Bizning manzil: Toshkent shahri, Chilonzor metrosi yonida, 5-bino. Mo'ljal: Korzinka ro'parasi. Tel: +998 95 901 14 45.",
+      default: "Savolingiz uchun rahmat! Men Apex Academy AI maslahatchisiman. IELTS, General English, IT Dasturlash va Matematika kurslarimiz bo'yicha bepul sinov darsiga yozilishingiz mumkin. Yozilish uchun telefon raqamingizni yozib qoldiring!"
+    };
+
+    let chatUserPendingCourse = 'IELTS Intensive';
+
+    async function handleSendChatMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendChatMessage('user', text);
+      input.value = '';
+
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+
+      const phoneMatch = text.match(/(?:\+?998[\s-]?)?(?:90|91|93|94|95|97|98|99|88|33|77)[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|\b\d{9}\b/);
+      const lower = text.toLowerCase();
+      if (lower.includes('ielts') || lower.includes('ingliz')) chatUserPendingCourse = 'IELTS Intensive';
+      else if (lower.includes('frontend') || lower.includes('react') || lower.includes('it') || lower.includes('dastur')) chatUserPendingCourse = 'Frontend Dasturlash';
+      else if (lower.includes('python') || lower.includes('django')) chatUserPendingCourse = 'Python & Django';
+      else if (lower.includes('matem') || lower.includes('hisob')) chatUserPendingCourse = 'Matematika & Mantiq';
+
+      setTimeout(async () => {
+        if (phoneMatch) {
+          let cleanPhone = phoneMatch[0].replace(/[^\d+]/g, '');
+          if (!cleanPhone.startsWith('+')) {
+            cleanPhone = cleanPhone.length === 9 ? '+998' + cleanPhone : '+' + cleanPhone;
+          }
+
+          let studentName = 'O\'quvchi';
+          if (tg?.initDataUnsafe?.user) {
+            const u = tg.initDataUnsafe.user;
+            studentName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Telegram O\'quvchi';
+          }
+
+          const payload = {
+            action: 'ai_chat_enrollment',
+            course: chatUserPendingCourse,
+            name: studentName,
+            phone: cleanPhone,
+            preferredTime: 'Kechki (18:30 - 20:30)',
+            date: new Date().toISOString()
+          };
+
+          try {
+            await fetch('/api/enroll', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+          } catch(err) {}
+
+          if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+          const successReply = `
+🎉 <b>Ajoyib! Sizni ro'yxatga muvaffaqiyatli qo'shdim!</b> 🎓<br><br>
+👤 <b>Ism:</b> ${studentName}<br>
+📞 <b>Telefon:</b> ${cleanPhone}<br>
+📚 <b>Tanlangan kurs:</b> ${chatUserPendingCourse}<br>
+📅 <b>Holat:</b> Bepul sinov darsi tasdiqlandi ✅<br><br>
+Ma'lumotlaringiz markazimiz jadvaliga (Google Sheets) kiritildi. Tez orada administratorimiz qo'ng'iroq qilib, dars vaqtini ma'lum qiladi!
+          `;
+          appendChatMessage('ai', successReply);
+          return;
+        }
+
+        if (lower.includes('yozil') || lower.includes('ro\'yxat') || lower.includes('qabul')) {
+          const enrollPrompt = `
+Albatta! Sizni <b>${chatUserPendingCourse}</b> kursi bo'yicha bepul sinov darsiga yozib qo'yaman. ✍️<br><br>
+Iltimos, bog'lanishimiz uchun <b>telefon raqamingizni</b> yozib qoldiring.
+          `;
+          appendChatMessage('ai', enrollPrompt);
+          return;
+        }
+
+        let reply = aiKnowledge.default;
+        if (lower.includes('ielts') || lower.includes('ingliz')) reply = aiKnowledge.ielts;
+        else if (lower.includes('it') || lower.includes('dastur') || lower.includes('frontend')) reply = aiKnowledge.it;
+        else if (lower.includes('bepul') || lower.includes('sinov')) reply = aiKnowledge.bepul;
+        else if (lower.includes('manzil') || lower.includes('qayerda')) reply = aiKnowledge.manzil;
+
+        appendChatMessage('ai', reply);
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      }, 600);
+    }
+
+    function sendQuickPrompt(promptText) {
+      document.getElementById('chatInput').value = promptText;
+      handleSendChatMessage(new Event('submit'));
+    }
+
+    function appendChatMessage(sender, text) {
+      const container = document.getElementById('chatMessages');
+      const isUser = sender === 'user';
+      
+      const div = document.createElement('div');
+      div.className = isUser ? 'flex items-start justify-end gap-2 ml-auto max-w-[85%]' : 'flex items-start gap-2 max-w-[88%]';
+
+      if (isUser) {
+        div.innerHTML = `
+          <div class="bg-indigo-600 rounded-2xl rounded-tr-sm p-3 text-xs leading-relaxed text-white shadow-sm">
+            ${text}
+          </div>
+        `;
+      } else {
+        div.innerHTML = `
+          <div class="w-7 h-7 rounded-lg bg-indigo-600 flex-shrink-0 flex items-center justify-center text-[11px] text-white">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-slate-800/90 border border-white/5 rounded-2xl rounded-tl-sm p-3 text-xs leading-relaxed text-slate-200">
+            ${text}
+          </div>
+        `;
+      }
+
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function clearChat() {
+      const container = document.getElementById('chatMessages');
+      container.innerHTML = `
+        <div class="flex items-start gap-2 max-w-[88%]">
+          <div class="w-7 h-7 rounded-lg bg-indigo-600 flex-shrink-0 flex items-center justify-center text-[11px] text-white">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-slate-800/90 border border-white/5 rounded-2xl rounded-tl-sm p-3 text-xs leading-relaxed text-slate-200">
+            Suhbat tozalandi. Qanday savollaringiz bor? Sizga yordam berishdan xursandman!
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleLang() {
+      currentLang = currentLang === 'uz' ? 'ru' : 'uz';
+      document.getElementById('langLabel').textContent = currentLang.toUpperCase();
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    }
+
+    function openTelegramBot() {
+      if (tg) {
+        tg.openTelegramLink('https://t.me/apex_edu_sherzod_bot');
+      } else {
+        window.open('https://t.me/apex_edu_sherzod_bot', '_blank');
+      }
+    }
+  </script>
+</body>
+</html>
