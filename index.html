@@ -847,20 +847,20 @@
         </button>
       </div>
 
-      <form id="enrollForm" onsubmit="handleEnrollSubmit(event)" class="space-y-3.5">
+      <form id="enrollForm" onsubmit="handleEnroll(event)" class="space-y-3.5">
         <div>
           <label class="block text-xs font-semibold text-slate-400 mb-1">Tanlangan Yo'nalish</label>
-          <input type="text" id="modalCourseName" readonly class="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-bold text-indigo-400 focus:outline-none">
+          <input type="text" id="selectedCourse" name="modalCourseName" readonly class="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-bold text-indigo-400 focus:outline-none">
         </div>
 
         <div>
           <label class="block text-xs font-semibold text-slate-400 mb-1">Ism va Familiyangiz</label>
-          <input type="text" id="modalUserName" required placeholder="Ism va familiyangiz" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+          <input type="text" id="userName" name="modalUserName" required placeholder="Ism va familiyangiz" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
         </div>
 
         <div>
           <label class="block text-xs font-semibold text-slate-400 mb-1">Telefon Raqamingiz</label>
-          <input type="tel" id="modalUserPhone" required placeholder="+998 90 123 45 67" value="+998 " class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+          <input type="tel" id="userPhone" name="modalUserPhone" required placeholder="+998 90 123 45 67" value="+998 " class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
         </div>
 
         <div>
@@ -879,9 +879,9 @@
     </div>
   </div>
 
-  <!-- SUCCESS MODAL -->
-  <div id="successModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-6 hidden">
-    <div class="glass-card rounded-3xl p-6 text-center max-w-sm w-full border border-emerald-500/30 shadow-2xl">
+  <!-- SUCCESS MODAL / SCREEN -->
+  <div id="successScreen" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-6 hidden">
+    <div id="successModal" class="glass-card rounded-3xl p-6 text-center max-w-sm w-full border border-emerald-500/30 shadow-2xl">
       <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3 border border-emerald-500/30">
         <i class="fa-solid fa-check"></i>
       </div>
@@ -1130,12 +1130,14 @@
       if (displayName) {
         document.getElementById('userGreeting').textContent = `Salom, ${displayName}! 👋`;
         document.getElementById('studentName').textContent = displayName;
-        document.getElementById('modalUserName').value = displayName;
+        const un = document.getElementById('userName') || document.getElementById('modalUserName');
+        if (un) un.value = displayName;
       }
 
       // 2. Telefon raqamni to'ldirish
       if (paramPhone) {
-        document.getElementById('modalUserPhone').value = paramPhone.startsWith('+') ? paramPhone : '+' + paramPhone;
+        const ph = document.getElementById('userPhone') || document.getElementById('modalUserPhone');
+        if (ph) ph.value = paramPhone.startsWith('+') ? paramPhone : '+' + paramPhone;
       }
 
       // 3. Foydalanuvchi roli (Ustoz/Admin yoki O'quvchi) ni avtomatik tekshirish
@@ -2125,45 +2127,64 @@
     // Modal Control
     function openEnrollModal(courseName) {
       if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-      document.getElementById('modalCourseName').value = courseName;
-      document.getElementById('enrollModal').classList.remove('hidden');
+      const c1 = document.getElementById('selectedCourse');
+      const c2 = document.getElementById('modalCourseName');
+      if (c1) c1.value = courseName;
+      if (c2) c2.value = courseName;
+      const modal = document.getElementById('enrollModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('enrollModal');
+      if (modal) modal.classList.add('hidden');
     }
 
     function closeEnrollModal() {
-      document.getElementById('enrollModal').classList.add('hidden');
-    }
-
-    // Enroll Submit
-    function handleEnrollSubmit(e) {
-      e.preventDefault();
-      const course = document.getElementById('modalCourseName').value;
-      const name = document.getElementById('modalUserName').value;
-      const phone = document.getElementById('modalUserPhone').value;
-      const time = document.getElementById('modalPreferredTime').value;
-
-      const payload = {
-        action: 'enrollment',
-        course,
-        name,
-        phone,
-        preferredTime: time,
-        date: new Date().toISOString()
-      };
-
-      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-
-      fetch('/api/enroll', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch(e => console.log('API save err:', e));
-
-      closeEnrollModal();
-      document.getElementById('successModal').classList.remove('hidden');
+      closeModal();
     }
 
     function closeSuccessModal() {
-      document.getElementById('successModal').classList.add('hidden');
+      const scr = document.getElementById('successScreen') || document.getElementById('successModal');
+      if (scr) scr.classList.add('hidden');
+    }
+
+    // Send data directly to n8n Webhook & Server Enroll
+    function handleEnroll(e) {
+      if (e) e.preventDefault();
+      const course = (document.getElementById('selectedCourse') || document.getElementById('modalCourseName'))?.value || '';
+      const name = (document.getElementById('userName') || document.getElementById('modalUserName'))?.value || '';
+      const phone = (document.getElementById('userPhone') || document.getElementById('modalUserPhone'))?.value || '';
+
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+      // Send data directly to n8n Webhook
+      try {
+        fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ course, name, phone, date: new Date().toLocaleDateString('uz-UZ') })
+        });
+        if (tg) {
+          try { tg.sendData(JSON.stringify({ course, name, phone, date: new Date().toLocaleDateString('uz-UZ') })); } catch(e){}
+        }
+        // Ichki serverimizga ham zaxira sifatida saqlaymiz
+        fetch('/api/enroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'enrollment', course, name, phone, date: new Date().toISOString() })
+        }).catch(err => console.log('API save err:', err));
+      } catch (err) {
+        console.log(err);
+      }
+
+      closeModal();
+      const successEl = document.getElementById('successScreen') || document.getElementById('successModal');
+      if (successEl) successEl.classList.remove('hidden');
+    }
+
+    function handleEnrollSubmit(e) {
+      return handleEnroll(e);
     }
 
     // Smart AI Chat with Auto-Enrollment & Google Sheets Integration
@@ -2218,6 +2239,17 @@
           };
 
           try {
+            fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                course: chatUserPendingCourse,
+                name: studentName,
+                phone: cleanPhone,
+                date: new Date().toLocaleDateString('uz-UZ')
+              })
+            }).catch(() => {});
+
             await fetch('/api/enroll', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

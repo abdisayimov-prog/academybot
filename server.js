@@ -909,6 +909,20 @@ Shoshiling, guruhda faqat 10 ta joy bor!
         leads.push({ ...data, receivedAt: new Date().toISOString() });
         saveJSON(LEADS_PATH, leads);
 
+        // n8n Webhook ga to'g'ridan-to'g'ri yuborish
+        try {
+          fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              course: data.course || 'Kurs',
+              name: data.name || '',
+              phone: data.phone || '',
+              date: new Date().toLocaleDateString('uz-UZ')
+            })
+          }).catch(e => console.error('n8n webhook err:', e.message));
+        } catch(e) {}
+
         const sheetUrl = getConfig().google_sheet_url;
         if (sheetUrl) {
           try {
