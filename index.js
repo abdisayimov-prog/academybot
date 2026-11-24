@@ -25,8 +25,8 @@ const publicUrl = process.env.WEB_APP_URL ||
 
 if (botToken) config.bot_token = botToken;
 if (publicUrl) config.web_app_url = publicUrl.replace(/\/$/, '');
-if (process.env.ADMIN_CHAT_ID) config.admin_chat_id = Number(process.env.ADMIN_CHAT_ID);
-if (process.env.GOOGLE_SHEET_URL) config.google_sheet_url = process.env.GOOGLE_SHEET_URL;
+config.admin_chat_id = process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (config.admin_chat_id || 5565743745);
+config.google_sheet_url = process.env.GOOGLE_SHEET_URL || config.google_sheet_url || 'https://script.google.com/macros/s/AKfycbzgm2zwOCtb-WakWg2vSPTUQrHGrHdFMTgi9QYVsHtSHMvCVn9CgXdgX3HiG3fAwS5J2Q/exec';
 
 try {
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');

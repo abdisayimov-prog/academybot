@@ -32,6 +32,8 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
+const DEFAULT_GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzgm2zwOCtb-WakWg2vSPTUQrHGrHdFMTgi9QYVsHtSHMvCVn9CgXdgX3HiG3fAwS5J2Q/exec';
+
 function getConfig() {
   let fileCfg = {};
   if (fs.existsSync(CONFIG_PATH)) {
@@ -42,8 +44,8 @@ function getConfig() {
   return {
     bot_token: process.env.BOT_TOKEN || fileCfg.bot_token || '',
     web_app_url: process.env.WEB_APP_URL || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL : null) || fileCfg.web_app_url || '',
-    admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || null),
-    google_sheet_url: process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || ''
+    admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || 5565743745),
+    google_sheet_url: process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || DEFAULT_GOOGLE_SHEET_URL
   };
 }
 
@@ -910,17 +912,44 @@ Shoshiling, guruhda faqat 10 ta joy bor!
         const sheetUrl = getConfig().google_sheet_url;
         if (sheetUrl) {
           try {
-            await fetch(sheetUrl, {
+            console.log('📊 Google Sheets ga yuborilmoqda...');
+            const sheetRes = await fetch(sheetUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(data)
+              body: JSON.stringify({
+                action: data.action || 'enrollment',
+                name: data.name,
+                phone: data.phone,
+                course: data.course,
+                preferredTime: data.preferredTime || 'Moslashuvchan',
+                date: data.date || new Date().toISOString()
+              })
             });
-          } catch (sheetErr) {}
+            const sheetTxt = await sheetRes.text();
+            console.log('✅ Google Sheets muvaffaqiyatli qabul qildi:', sheetRes.status, sheetTxt);
+          } catch (sheetErr) {
+            console.error('❌ Google Sheets xatosi:', sheetErr.message);
+          }
         }
+
+        // Bosh Adminga darhol Telegramdan bildirishnoma yuborish
+        const adminText = `
+🔔 <b>YANGI ARIZA KELDI! (Lid)</b> 🎓
+
+👤 <b>O'quvchi:</b> ${data.name || 'Noma\'lum'}
+📞 <b>Telefon:</b> ${data.phone || 'Ko\'rsatilmagan'}
+📚 <b>Kurs:</b> ${data.course || 'Umumiy'}
+⏰ <b>Vaqti:</b> ${data.preferredTime || 'Moslashuvchan'}
+📅 <b>Vaqt:</b> ${new Date().toLocaleDateString('uz-UZ')} ${new Date().toLocaleTimeString('uz-UZ')}
+
+<i>Ma'lumotlar Google Sheets jadvaliga uzatildi ✅</i>
+        `.trim();
+        await notifyAdmin(adminText);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, message: 'Ariza muvaffaqiyatli qabul qilindi' }));
       } catch (err) {
+        console.error('Enroll xatosi:', err);
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }

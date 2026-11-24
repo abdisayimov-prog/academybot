@@ -32,8 +32,8 @@ function loadConfig() {
   config = {
     bot_token: process.env.BOT_TOKEN || fileCfg.bot_token || config.bot_token || '',
     web_app_url: process.env.WEB_APP_URL || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL : null) || fileCfg.web_app_url || config.web_app_url || 'http://localhost:3000',
-    admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || config.admin_chat_id || null),
-    google_sheet_url: process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || config.google_sheet_url || ''
+    admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || config.admin_chat_id || 5565743745),
+    google_sheet_url: process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || config.google_sheet_url || 'https://script.google.com/macros/s/AKfycbzgm2zwOCtb-WakWg2vSPTUQrHGrHdFMTgi9QYVsHtSHMvCVn9CgXdgX3HiG3fAwS5J2Q/exec'
   };
 }
 loadConfig();
