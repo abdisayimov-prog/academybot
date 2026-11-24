@@ -214,16 +214,43 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 1. Rolni tekshirish: GET /api/check-role?phone=...
+  // 1. Rolni tekshirish: GET /api/check-role?phone=...&chatId=...
   if (req.method === 'GET' && pathname === '/api/check-role') {
     const rawPhone = parsedUrl.query.phone || '';
+    const rawChatId = parsedUrl.query.chatId || '';
     const phoneClean = cleanPhone(rawPhone);
     const teachers = loadJSON(TEACHERS_PATH);
-    const found = teachers.find(t => cleanPhone(t.phone) === phoneClean);
+    const cfg = getConfig();
+    const users = loadJSON(path.join(__dirname, 'users.json'), {});
+
+    // Avval telefon raqami bo'yicha qidirish
+    let found = phoneClean ? teachers.find(t => cleanPhone(t.phone) === phoneClean) : null;
+
+    // Agar telefon bo'yicha topilmasa, Telegram Chat ID bo'yicha aniqlash
+    if (!found && rawChatId) {
+      const numChatId = Number(rawChatId);
+      if (cfg.admin_chat_id && numChatId === Number(cfg.admin_chat_id)) {
+        found = teachers.find(t => t.role.toLowerCase().includes('admin') || cleanPhone(t.phone).includes('959011445')) || {
+          id: 1,
+          name: "Sherzodbek",
+          phone: "+998959011445",
+          role: "Bosh Administrator & Ustoz",
+          assignedCourse: "Barcha kurslar",
+          group: "Barcha guruhlar"
+        };
+      } else {
+        for (const p in users) {
+          if (users[p].chatId === numChatId && users[p].role === 'teacher') {
+            found = teachers.find(t => cleanPhone(t.phone) === cleanPhone(p));
+            break;
+          }
+        }
+      }
+    }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     if (found) {
-      const isAdmin = found.role.toLowerCase().includes('admin') || cleanPhone(found.phone).includes('959011445');
+      const isAdmin = found.role.toLowerCase().includes('admin') || cleanPhone(found.phone).includes('959011445') || (rawChatId && Number(rawChatId) === Number(cfg.admin_chat_id));
       res.end(JSON.stringify({
         success: true,
         isTeacher: true,

@@ -1138,19 +1138,19 @@
         document.getElementById('modalUserPhone').value = paramPhone.startsWith('+') ? paramPhone : '+' + paramPhone;
       }
 
-      // 3. Agar URL da yoki telefon bo'yicha o'qituvchi bo'lsa -> avtomatik tekshirish
-      if (paramRole === 'teacher' || paramPhone) {
-        try {
-          const res = await fetch(`/api/check-role?phone=${encodeURIComponent(paramPhone || '')}`);
-          const data = await res.json();
-          if (data.isTeacher) {
-            setupTeacherRole(data.teacher, data.isAdmin);
-            fetchCourses();
-            fetchMockSlots();
-            return;
-          }
-        } catch (e) {}
-      }
+      // 3. Foydalanuvchi roli (Ustoz/Admin yoki O'quvchi) ni avtomatik tekshirish
+      const userChatId = tg?.initDataUnsafe?.user?.id || '';
+      try {
+        const query = `?phone=${encodeURIComponent(paramPhone || '')}&chatId=${encodeURIComponent(userChatId)}`;
+        const res = await fetch(`/api/check-role${query}`);
+        const data = await res.json();
+        if (data.isTeacher) {
+          setupTeacherRole(data.teacher, data.isAdmin);
+          fetchCourses();
+          fetchMockSlots();
+          return;
+        }
+      } catch (e) {}
 
       // Agar o'quvchi bo'lsa
       setupStudentRole();
