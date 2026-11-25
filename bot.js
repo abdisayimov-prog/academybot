@@ -14,6 +14,10 @@ const CONFIG_PATH = path.join(__dirname, 'bot_config.json');
 const TEACHERS_PATH = path.join(__dirname, 'teachers.json');
 const RECEIPTS_PATH = path.join(__dirname, 'receipts.json');
 const USERS_PATH = path.join(__dirname, 'users.json');
+const N8N_CHAT_WEBHOOK = 'https://abdisayimov.app.n8n.cloud/webhook/apex-chat';
+
+// Ro'yxatdan o'tgan foydalanuvchilar chat_id lari (tezkor xotira sessiyasi)
+const authorizedUsers = new Set();
 
 let config = {
   bot_token: '',
@@ -67,6 +71,69 @@ function loadTeachers() {
   return loadJSON(TEACHERS_PATH, []);
 }
 
+// Ro'yxatdan o'tgan foydalanuvchilarni xotiraga yuklash
+function loadAuthorizedUsers() {
+  if (config.admin_chat_id) {
+    authorizedUsers.add(Number(config.admin_chat_id));
+  }
+  const users = loadJSON(USERS_PATH, {});
+  for (const phone in users) {
+    if (users[phone]?.chatId) {
+      authorizedUsers.add(Number(users[phone].chatId));
+    }
+  }
+}
+loadAuthorizedUsers();
+
+// Foydalanuvchi avval telefon berganmi yoki yo'qligini tekshirish
+function getAuthorizedUser(chatId) {
+  const numId = Number(chatId);
+  const users = loadJSON(USERS_PATH, {});
+  for (const phone in users) {
+    if (Number(users[phone]?.chatId) === numId) {
+      authorizedUsers.add(numId);
+      return users[phone];
+    }
+  }
+  if (config.admin_chat_id && numId === Number(config.admin_chat_id)) {
+    authorizedUsers.add(numId);
+    return { chatId: numId, name: 'Admin', rawPhone: '', role: 'teacher' };
+  }
+  if (authorizedUsers.has(numId)) {
+    return { chatId: numId, name: 'Foydalanuvchi', rawPhone: '', role: 'student' };
+  }
+  return null;
+}
+
+// Savolni to'g'ridan-to'g'ri n8n apex-chat Webhookiga uzatish
+async function forwardToN8n(question, chatId, user = {}) {
+  const response = await fetch(N8N_CHAT_WEBHOOK, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      question,
+      message: question,
+      user_id: String(chatId),
+      chat_id: chatId,
+      name: user.name || '',
+      phone: user.rawPhone || ''
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`n8n HTTP ${response.status}`);
+  }
+
+  const rawText = await response.text();
+  try {
+    const data = JSON.parse(rawText);
+    const item = Array.isArray(data) ? data[0] : data;
+    return item?.answer || item?.output || item?.text || item?.message || rawText;
+  } catch (e) {
+    return rawText;
+  }
+}
+
 function telegramRequest(method, data = {}) {
   loadConfig();
   return new Promise((resolve, reject) => {
@@ -104,7 +171,7 @@ function telegramRequest(method, data = {}) {
   });
 }
 
-// Xabar yuborish
+// Xabar yuborish (HTML xato bersa oddiy matn sifatida qayta yuboradi)
 async function sendMessage(chatId, text, replyMarkup = null) {
   const data = {
     chat_id: chatId,
@@ -114,7 +181,12 @@ async function sendMessage(chatId, text, replyMarkup = null) {
   if (replyMarkup) {
     data.reply_markup = replyMarkup;
   }
-  return telegramRequest('sendMessage', data);
+  const res = await telegramRequest('sendMessage', data);
+  if (!res.ok && res.description && res.description.includes('parse entities')) {
+    delete data.parse_mode;
+    return telegramRequest('sendMessage', data);
+  }
+  return res;
 }
 
 // Xabarni tahrirlash (Edit message)
@@ -335,7 +407,8 @@ Iltimos, haqiqiy to'lov skrinshotini (Click / Payme kvitansiyasini) ilovamiz orq
       console.log(`👑 Bosh Admin aniqlandi: ${teacher?.name || firstName} (ChatID: ${chatId})`);
     }
 
-    // Foydalanuvchilar xaritasini saqlash (Davomat xabarnomalari uchun)
+    // Foydalanuvchilar xaritasini va tezkor sessiyani saqlash
+    authorizedUsers.add(Number(chatId));
     let users = loadJSON(USERS_PATH, {});
     users[phone] = {
       chatId,
@@ -454,7 +527,22 @@ Xavfsizlik va tizim sizga mos bo'limni (<b>O'qituvchilar Paneli</b> yoki <b>O'qu
     return;
   }
 
-  // 4. Boshqa har qanday xabar uchun
+  // 4. Boshqa har qanday matnli xabar uchun
+  const authorizedUser = getAuthorizedUser(chatId);
+  if (authorizedUser) {
+    if (!text) return;
+    try {
+      await telegramRequest('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
+      const aiReply = await forwardToN8n(text, chatId, authorizedUser);
+      await sendMessage(chatId, aiReply || 'Savolingiz qabul qilindi.');
+    } catch (err) {
+      console.error('❌ n8n apex-chat xatosi:', err.message);
+      await sendMessage(chatId, '⚠️ AI maslahatchi hozircha band yoki n8n <code>apex-chat</code> webhook hali faollashtirilmagan. Iltimos, birozdan so\'ng qayta yozing yoki pastdagi ilovadan foydalaning.');
+    }
+    return;
+  }
+
+  // Agar yangi foydalanuvchi bo'lsa -> birinchi marta telefon raqamini so'rash
   await sendMessage(chatId, `Iltimos, tizimga kirish uchun pastdagi <b>"📱 Telefon raqamni yuborish"</b> tugmasini bosing:`, {
     keyboard: [
       [{ text: '📱 Telefon raqamni yuborish (Kirish)', request_contact: true }]

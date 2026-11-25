@@ -2187,16 +2187,34 @@
       return handleEnroll(e);
     }
 
-    // Smart AI Chat with Auto-Enrollment & Google Sheets Integration
-    const aiKnowledge = {
-      ielts: "🇬🇧 IELTS Intensive kursimiz 3 oyga mo'ljallangan. Darslar haftasiga 3 marta 2 soatdan bo'lib o'tadi. Har shanba kuni bepul Mock imtihon bo'ladi. Oylik to'lov 850 000 so'm. O'qituvchimiz malakali xalqaro sertifikatli ustoz. Sinov darsiga yozilish uchun telefon raqamingizni yozib qoldiring!",
-      it: "💻 IT yo'nalishimizda Frontend (React) va Python Django kurslari mavjud. Darslar amaliy loyihalar ustida o'tiladi. Oylik to'lov 850 000 - 900 000 so'm. Sinov darsiga yozilish uchun telefon raqamingizni yozib qoldiring!",
-      bepul: "🎁 Birinchi sinov darsi bizda barcha kurslar uchun MUTLAQO BEPUL! Yozilish uchun telefon raqamingizni shu yerga yozing yoki pastdagi 'Sinov Darsiga Yozilish' tugmasini bosing.",
-      manzil: "📍 Bizning manzil: Toshkent shahri, Chilonzor metrosi yonida, 5-bino. Mo'ljal: Korzinka ro'parasi. Tel: +998 95 901 14 45.",
-      default: "Savolingiz uchun rahmat! Men Apex Academy AI maslahatchisiman. IELTS, General English, IT Dasturlash va Matematika kurslarimiz bo'yicha bepul sinov darsiga yozilishingiz mumkin. Yozilish uchun telefon raqamingizni yozib qoldiring!"
-    };
-
+    // Smart AI Chat (n8n Webhook: apex-chat bilan to'g'ridan-to'g'ri integratsiya)
     let chatUserPendingCourse = 'IELTS Intensive';
+
+    async function askAI(userQuestion) {
+      const userId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : 'guest';
+      const response = await fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: userQuestion,
+          user_id: userId,
+          chat_id: userId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const rawText = await response.text();
+      try {
+        const data = JSON.parse(rawText);
+        const item = Array.isArray(data) ? data[0] : data;
+        return item?.answer || item?.output || item?.text || item?.message || rawText;
+      } catch (e) {
+        return rawText;
+      }
+    }
 
     async function handleSendChatMessage(e) {
       e.preventDefault();
@@ -2216,79 +2234,86 @@
       else if (lower.includes('python') || lower.includes('django')) chatUserPendingCourse = 'Python & Django';
       else if (lower.includes('matem') || lower.includes('hisob')) chatUserPendingCourse = 'Matematika & Mantiq';
 
-      setTimeout(async () => {
-        if (phoneMatch) {
-          let cleanPhone = phoneMatch[0].replace(/[^\d+]/g, '');
-          if (!cleanPhone.startsWith('+')) {
-            cleanPhone = cleanPhone.length === 9 ? '+998' + cleanPhone : '+' + cleanPhone;
-          }
+      if (phoneMatch) {
+        let cleanPhone = phoneMatch[0].replace(/[^\d+]/g, '');
+        if (!cleanPhone.startsWith('+')) {
+          cleanPhone = cleanPhone.length === 9 ? '+998' + cleanPhone : '+' + cleanPhone;
+        }
 
-          let studentName = 'O\'quvchi';
-          if (tg?.initDataUnsafe?.user) {
-            const u = tg.initDataUnsafe.user;
-            studentName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Telegram O\'quvchi';
-          }
+        let studentName = 'O\'quvchi';
+        if (tg?.initDataUnsafe?.user) {
+          const u = tg.initDataUnsafe.user;
+          studentName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Telegram O\'quvchi';
+        }
 
-          const payload = {
-            action: 'ai_chat_enrollment',
-            course: chatUserPendingCourse,
-            name: studentName,
-            phone: cleanPhone,
-            preferredTime: 'Kechki (18:30 - 20:30)',
-            date: new Date().toISOString()
-          };
+        const payload = {
+          action: 'ai_chat_enrollment',
+          course: chatUserPendingCourse,
+          name: studentName,
+          phone: cleanPhone,
+          preferredTime: 'Kechki (18:30 - 20:30)',
+          date: new Date().toISOString()
+        };
 
-          try {
-            fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                course: chatUserPendingCourse,
-                name: studentName,
-                phone: cleanPhone,
-                date: new Date().toLocaleDateString('uz-UZ')
-              })
-            }).catch(() => {});
+        try {
+          fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              course: chatUserPendingCourse,
+              name: studentName,
+              phone: cleanPhone,
+              date: new Date().toLocaleDateString('uz-UZ')
+            })
+          }).catch(() => {});
 
-            await fetch('/api/enroll', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-          } catch(err) {}
+          await fetch('/api/enroll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } catch(err) {}
 
-          if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
-          const successReply = `
+        const successReply = `
 🎉 <b>Ajoyib! Sizni ro'yxatga muvaffaqiyatli qo'shdim!</b> 🎓<br><br>
 👤 <b>Ism:</b> ${studentName}<br>
 📞 <b>Telefon:</b> ${cleanPhone}<br>
 📚 <b>Tanlangan kurs:</b> ${chatUserPendingCourse}<br>
 📅 <b>Holat:</b> Bepul sinov darsi tasdiqlandi ✅<br><br>
 Ma'lumotlaringiz markazimiz jadvaliga (Google Sheets) kiritildi. Tez orada administratorimiz qo'ng'iroq qilib, dars vaqtini ma'lum qiladi!
-          `;
-          appendChatMessage('ai', successReply);
-          return;
-        }
+        `;
+        appendChatMessage('ai', successReply);
+        return;
+      }
 
-        if (lower.includes('yozil') || lower.includes('ro\'yxat') || lower.includes('qabul')) {
-          const enrollPrompt = `
-Albatta! Sizni <b>${chatUserPendingCourse}</b> kursi bo'yicha bepul sinov darsiga yozib qo'yaman. ✍️<br><br>
-Iltimos, bog'lanishimiz uchun <b>telefon raqamingizni</b> yozib qoldiring.
-          `;
-          appendChatMessage('ai', enrollPrompt);
-          return;
-        }
+      // Yuklanish indikatorini ko'rsatish
+      const container = document.getElementById('chatMessages');
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = 'aiTypingIndicator';
+      loadingDiv.className = 'flex items-start gap-2 max-w-[88%]';
+      loadingDiv.innerHTML = `
+        <div class="w-7 h-7 rounded-lg bg-indigo-600 flex-shrink-0 flex items-center justify-center text-[11px] text-white">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="bg-slate-800/90 border border-white/5 rounded-2xl rounded-tl-sm p-3 text-xs text-slate-400">
+          <i class="fa-solid fa-spinner animate-spin mr-1.5 text-indigo-400"></i> Javob tayyorlanmoqda...
+        </div>
+      `;
+      container.appendChild(loadingDiv);
+      container.scrollTop = container.scrollHeight;
 
-        let reply = aiKnowledge.default;
-        if (lower.includes('ielts') || lower.includes('ingliz')) reply = aiKnowledge.ielts;
-        else if (lower.includes('it') || lower.includes('dastur') || lower.includes('frontend')) reply = aiKnowledge.it;
-        else if (lower.includes('bepul') || lower.includes('sinov')) reply = aiKnowledge.bepul;
-        else if (lower.includes('manzil') || lower.includes('qayerda')) reply = aiKnowledge.manzil;
-
-        appendChatMessage('ai', reply);
+      try {
+        const aiReply = await askAI(text);
+        loadingDiv.remove();
+        const formattedReply = String(aiReply || 'Kechirasiz, javob olinmadi.').replace(/\n/g, '<br>');
+        appendChatMessage('ai', formattedReply);
         if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-      }, 600);
+      } catch (err) {
+        loadingDiv.remove();
+        appendChatMessage('ai', '⚠️ AI maslahatchi bilan bog\'lanib bo\'lmadi (n8n <code>apex-chat</code> webhook faol emas). Iltimos, birozdan so\'ng qayta urinib ko\'ring.');
+      }
     }
 
     function sendQuickPrompt(promptText) {
