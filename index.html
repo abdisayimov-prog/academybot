@@ -781,19 +781,6 @@
         </div>
       </div>
 
-      <!-- Quick Suggested Questions -->
-      <div class="py-2 flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
-        <button onclick="sendQuickPrompt('IELTS kurslari narxi va dars vaqtlari qanday?')" class="px-2.5 py-1 rounded-full bg-slate-800 border border-white/10 text-[11px] text-slate-300 whitespace-nowrap active:scale-95">
-          🇬🇧 IELTS narxi?
-        </button>
-        <button onclick="sendQuickPrompt('IT va Dasturlash kursingiz qachon boshlanadi?')" class="px-2.5 py-1 rounded-full bg-slate-800 border border-white/10 text-[11px] text-slate-300 whitespace-nowrap active:scale-95">
-          💻 IT darslari?
-        </button>
-        <button onclick="sendQuickPrompt('Meni bepul sinov darsiga yozib qo\'ying')" class="px-2.5 py-1 rounded-full bg-slate-800 border border-white/10 text-[11px] text-slate-300 whitespace-nowrap active:scale-95">
-          🎁 Bepul darsga yozilish
-        </button>
-      </div>
-
       <!-- Chat Input Box -->
       <div class="pt-2">
         <form id="chatForm" onsubmit="handleSendChatMessage(event)" class="flex items-center gap-2">
@@ -2310,7 +2297,12 @@ Ma'lumotlaringiz markazimiz jadvaliga (Google Sheets) kiritildi. Tez orada admin
       try {
         const aiReply = await askAI(text);
         loadingDiv.remove();
-        const formattedReply = String(aiReply || 'Kechirasiz, javob olinmadi.').replace(/\n/g, '<br>');
+        const formattedReply = String(aiReply || 'Kechirasiz, javob olinmadi.')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>')
+          .replace(/\n/g, '<br>');
         appendChatMessage('ai', formattedReply);
         if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
       } catch (err) {

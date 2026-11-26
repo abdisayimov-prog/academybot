@@ -125,13 +125,18 @@ async function forwardToN8n(question, chatId, user = {}) {
   }
 
   const rawText = await response.text();
+  let reply = rawText;
   try {
     const data = JSON.parse(rawText);
     const item = Array.isArray(data) ? data[0] : data;
-    return item?.answer || item?.output || item?.text || item?.message || rawText;
-  } catch (e) {
-    return rawText;
-  }
+    reply = item?.answer || item?.output || item?.text || item?.message || rawText;
+  } catch (e) {}
+
+  return String(reply)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 }
 
 function telegramRequest(method, data = {}) {
