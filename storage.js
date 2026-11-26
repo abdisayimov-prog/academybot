@@ -70,16 +70,25 @@ function loadJSON(filePath, def = []) {
   return def;
 }
 
-function pushToSheets(payload) {
+async function pushToSheets(payload) {
   const sheetUrl = getConfig().google_sheet_url;
-  if (!sheetUrl) return Promise.resolve(false);
-  return fetch(sheetUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
-    .then(r => r.ok)
-    .catch(() => false);
+  const candidates = [sheetUrl];
+  if (DEFAULT_GOOGLE_SHEET_URL && sheetUrl !== DEFAULT_GOOGLE_SHEET_URL) {
+    candidates.push(DEFAULT_GOOGLE_SHEET_URL);
+  }
+  for (const base of candidates) {
+    if (!base) continue;
+    try {
+      const r = await fetch(base, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (r.ok) return true;
+    } catch (e) {}
+  }
+  return false;
 }
 
 function pushStateToSheets(key, value) {
@@ -95,6 +104,33 @@ function saveJSON(filePath, data, syncKey = null) {
   }
 }
 
+async function fetchTextWithFallback(querySuffix) {
+  const sheetUrl = getConfig().google_sheet_url;
+  const candidates = [sheetUrl];
+  if (DEFAULT_GOOGLE_SHEET_URL && sheetUrl !== DEFAULT_GOOGLE_SHEET_URL) {
+    candidates.push(DEFAULT_GOOGLE_SHEET_URL);
+  }
+
+  let lastResInfo = { status: 0, text: '', url: sheetUrl || '' };
+  for (const base of candidates) {
+    if (!base) continue;
+    const res = await fetch(`${base}${querySuffix}`, {
+      redirect: 'follow',
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'User-Agent': 'ApexAcademy/1.0'
+      },
+      signal: AbortSignal.timeout(15000)
+    });
+    const text = await res.text();
+    lastResInfo = { status: res.status, text, url: base };
+    if (res.ok && text.trim().startsWith('{')) {
+      return lastResInfo;
+    }
+  }
+  return lastResInfo;
+}
+
 async function syncAllFromSheets(force = false) {
   const now = Date.now();
   if (!force && now - lastCoursesSyncAt < 15000) return false;
@@ -104,13 +140,17 @@ async function syncAllFromSheets(force = false) {
   if (!sheetUrl) return false;
 
   try {
-    const res = await fetch(`${sheetUrl}?action=sync_all`, {
-      redirect: 'follow',
-      signal: AbortSignal.timeout(15000)
-    });
-    const text = await res.text();
+    const { status, text, url: usedUrl } = await fetchTextWithFallback('?action=sync_all');
     if (!text.trim().startsWith('{')) {
-      lastSyncStatus = { ok: false, error: `Non-JSON (${res.status})`, urlTail: sheetUrl.slice(-24), at: new Date().toISOString(), coursesCount: 0 };
+      lastSyncStatus = {
+        ok: false,
+        error: `Non-JSON (${status})`,
+        isDefault: usedUrl === DEFAULT_GOOGLE_SHEET_URL,
+        urlLen: usedUrl.length,
+        urlTail: usedUrl.slice(-24),
+        at: new Date().toISOString(),
+        coursesCount: 0
+      };
       return false; // Eski Apps Script HTML qaytarsa tizimni to'xtatmaslik
     }
     const data = JSON.parse(text);
@@ -146,7 +186,7 @@ async function syncAllFromSheets(force = false) {
       }
     }
 
-    lastSyncStatus = { ok: true, error: null, at: new Date().toISOString(), coursesCount: (data.courses || []).length };
+    lastSyncStatus = { ok: true, error: null, isDefault: usedUrl === DEFAULT_GOOGLE_SHEET_URL, at: new Date().toISOString(), coursesCount: (data.courses || []).length };
     console.log(`☁️ Google Sheets dan ma'lumotlar muvaffaqiyatli sinxronlandi (${(data.courses || []).length} ta kurs)`);
     return true;
   } catch (e) {
@@ -165,19 +205,23 @@ async function syncCoursesOnly(force = false) {
   if (!sheetUrl) return null;
 
   try {
-    const res = await fetch(`${sheetUrl}?action=get_courses`, {
-      redirect: 'follow',
-      signal: AbortSignal.timeout(15000)
-    });
-    const text = await res.text();
+    const { status, text, url: usedUrl } = await fetchTextWithFallback('?action=get_courses');
     if (!text.trim().startsWith('{')) {
-      lastSyncStatus = { ok: false, error: `get_courses non-JSON (${res.status})`, urlTail: sheetUrl.slice(-24), at: new Date().toISOString(), coursesCount: 0 };
+      lastSyncStatus = {
+        ok: false,
+        error: `get_courses non-JSON (${status})`,
+        isDefault: usedUrl === DEFAULT_GOOGLE_SHEET_URL,
+        urlLen: usedUrl.length,
+        urlTail: usedUrl.slice(-24),
+        at: new Date().toISOString(),
+        coursesCount: 0
+      };
       return null;
     }
     const data = JSON.parse(text);
     if (data.success && Array.isArray(data.courses)) {
       fs.writeFileSync(path.join(__dirname, 'courses.json'), JSON.stringify(data.courses, null, 2), 'utf8');
-      lastSyncStatus = { ok: true, error: null, at: new Date().toISOString(), coursesCount: data.courses.length };
+      lastSyncStatus = { ok: true, error: null, isDefault: usedUrl === DEFAULT_GOOGLE_SHEET_URL, at: new Date().toISOString(), coursesCount: data.courses.length };
       return data.courses;
     }
   } catch (e) {
