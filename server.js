@@ -180,7 +180,7 @@ const server = http.createServer(async (req, res) => {
   // 0. Healthcheck & UptimeRobot Ping (Server uxlab qolmasligi uchun)
   if (pathname === '/health' || pathname === '/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), time: new Date().toISOString() }));
+    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), sync: storage.getSyncStatus(), time: new Date().toISOString() }));
     return;
   }
 
@@ -717,7 +717,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
 
   // 12.2 Kurslar ro'yxati (Google Sheets bilan sinxronlangan): GET /api/courses
   if (req.method === 'GET' && pathname === '/api/courses') {
-    await storage.syncCoursesOnly(false);
+    await storage.syncCoursesOnly(parsedUrl.query.refresh === '1');
     const courses = loadJSON(COURSES_PATH) || [];
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, courses }));

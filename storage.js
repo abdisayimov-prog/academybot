@@ -21,6 +21,7 @@ const STATE_FILES = {
 };
 
 let lastCoursesSyncAt = 0;
+let lastSyncStatus = { ok: null, error: null, at: null, coursesCount: 0 };
 
 function getConfig() {
   let fileCfg = {};
@@ -104,14 +105,19 @@ async function syncAllFromSheets(force = false) {
 
   try {
     const res = await fetch(`${sheetUrl}?action=sync_all`, {
-      signal: AbortSignal.timeout(8000)
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15000)
     });
     const text = await res.text();
     if (!text.trim().startsWith('{')) {
+      lastSyncStatus = { ok: false, error: `Non-JSON (${res.status}): ${text.slice(0, 80)}`, at: new Date().toISOString(), coursesCount: 0 };
       return false; // Eski Apps Script HTML qaytarsa tizimni to'xtatmaslik
     }
     const data = JSON.parse(text);
-    if (!data.success) return false;
+    if (!data.success) {
+      lastSyncStatus = { ok: false, error: 'data.success is false', at: new Date().toISOString(), coursesCount: 0 };
+      return false;
+    }
 
     // 1. Kurslar varag'idan kurslarni yangilash
     if (Array.isArray(data.courses)) {
@@ -140,9 +146,12 @@ async function syncAllFromSheets(force = false) {
       }
     }
 
+    lastSyncStatus = { ok: true, error: null, at: new Date().toISOString(), coursesCount: (data.courses || []).length };
     console.log(`☁️ Google Sheets dan ma'lumotlar muvaffaqiyatli sinxronlandi (${(data.courses || []).length} ta kurs)`);
     return true;
   } catch (e) {
+    lastSyncStatus = { ok: false, error: e.message, at: new Date().toISOString(), coursesCount: 0 };
+    console.error('❌ syncAllFromSheets xato:', e.message);
     return false;
   }
 }
@@ -157,17 +166,29 @@ async function syncCoursesOnly(force = false) {
 
   try {
     const res = await fetch(`${sheetUrl}?action=get_courses`, {
-      signal: AbortSignal.timeout(6000)
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15000)
     });
     const text = await res.text();
-    if (!text.trim().startsWith('{')) return null;
+    if (!text.trim().startsWith('{')) {
+      lastSyncStatus = { ok: false, error: `get_courses non-JSON (${res.status}): ${text.slice(0, 80)}`, at: new Date().toISOString(), coursesCount: 0 };
+      return null;
+    }
     const data = JSON.parse(text);
     if (data.success && Array.isArray(data.courses)) {
       fs.writeFileSync(path.join(__dirname, 'courses.json'), JSON.stringify(data.courses, null, 2), 'utf8');
+      lastSyncStatus = { ok: true, error: null, at: new Date().toISOString(), coursesCount: data.courses.length };
       return data.courses;
     }
-  } catch (e) {}
+  } catch (e) {
+    lastSyncStatus = { ok: false, error: e.message, at: new Date().toISOString(), coursesCount: 0 };
+    console.error('❌ syncCoursesOnly xato:', e.message);
+  }
   return null;
+}
+
+function getSyncStatus() {
+  return lastSyncStatus;
 }
 
 module.exports = {
@@ -180,5 +201,6 @@ module.exports = {
   pushToSheets,
   pushStateToSheets,
   syncAllFromSheets,
-  syncCoursesOnly
+  syncCoursesOnly,
+  getSyncStatus
 };
