@@ -3,10 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const https = require('https');
+const storage = require('./storage.js');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = __dirname;
-const CONFIG_PATH = path.join(__dirname, 'bot_config.json');
 const TEACHERS_PATH = path.join(__dirname, 'teachers.json');
 const GROUPS_PATH = path.join(__dirname, 'groups.json');
 const LEADS_PATH = path.join(__dirname, 'leads.json');
@@ -32,39 +32,7 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
-const DEFAULT_GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzgm2zwOCtb-WakWg2vSPTUQrHGrHdFMTgi9QYVsHtSHMvCVn9CgXdgX3HiG3fAwS5J2Q/exec';
-
-function getConfig() {
-  let fileCfg = {};
-  if (fs.existsSync(CONFIG_PATH)) {
-    try {
-      fileCfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-    } catch (e) {}
-  }
-  return {
-    bot_token: process.env.BOT_TOKEN || fileCfg.bot_token || '',
-    web_app_url: process.env.WEB_APP_URL || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL : null) || fileCfg.web_app_url || '',
-    admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || 5565743745),
-    google_sheet_url: process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || DEFAULT_GOOGLE_SHEET_URL
-  };
-}
-
-function cleanPhone(p) {
-  return String(p || '').replace(/\D/g, '');
-}
-
-function loadJSON(filePath, def = []) {
-  if (fs.existsSync(filePath)) {
-    try {
-      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    } catch (e) {}
-  }
-  return def;
-}
-
-function saveJSON(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-}
+const { getConfig, saveConfig, cleanPhone, loadJSON, saveJSON } = storage;
 
 // Telegram Bot API orqali xabar yuborish yordamchisi
 function sendTelegramMessage(chatId, text, replyMarkup = null) {
@@ -195,7 +163,7 @@ function notifyAdminPhoto(imageBuffer, caption, replyMarkup = null) {
   return Promise.resolve(null);
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -315,7 +283,7 @@ const server = http.createServer((req, res) => {
         };
 
         groups.push(newGroup);
-        saveJSON(GROUPS_PATH, groups);
+        saveJSON(GROUPS_PATH, groups, 'groups');
 
         console.log('👥 Yangi guruh ochildi:', newGroup.name, `(${newGroup.teacherName})`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -333,7 +301,7 @@ const server = http.createServer((req, res) => {
     const id = parseInt(pathname.split('/').pop());
     let groups = loadJSON(GROUPS_PATH);
     groups = groups.filter(g => g.id !== id);
-    saveJSON(GROUPS_PATH, groups);
+    saveJSON(GROUPS_PATH, groups, 'groups');
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, message: 'Guruh o\'chirildi' }));
     return;
@@ -385,7 +353,7 @@ const server = http.createServer((req, res) => {
         };
 
         teachers.push(newTeacher);
-        saveJSON(TEACHERS_PATH, teachers);
+        saveJSON(TEACHERS_PATH, teachers, 'teachers');
 
         console.log('👨‍🏫 Yangi o\'qituvchi qo\'shildi:', newTeacher);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -403,7 +371,7 @@ const server = http.createServer((req, res) => {
     const id = parseInt(pathname.split('/').pop());
     let teachers = loadJSON(TEACHERS_PATH);
     teachers = teachers.filter(t => t.id !== id);
-    saveJSON(TEACHERS_PATH, teachers);
+    saveJSON(TEACHERS_PATH, teachers, 'teachers');
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, message: 'O\'qituvchi o\'chirildi' }));
     return;
@@ -444,7 +412,7 @@ const server = http.createServer((req, res) => {
         const record = JSON.parse(body);
         let records = loadJSON(ATTENDANCE_PATH);
         records.push({ ...record, savedAt: new Date().toISOString() });
-        saveJSON(ATTENDANCE_PATH, records);
+        saveJSON(ATTENDANCE_PATH, records, 'attendance');
 
         // Darsga kelmagan (absent) o'quvchilar ota-onasiga Telegram xabarnoma (0 so'm, SMS siz!)
         if (record.absentStudents && Array.isArray(record.absentStudents)) {
@@ -519,7 +487,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         const receiptsFile = path.join(__dirname, 'receipts.json');
         let receipts = loadJSON(receiptsFile);
         receipts.push(receiptData);
-        saveJSON(receiptsFile, receipts);
+        saveJSON(receiptsFile, receipts, 'receipts');
 
         console.log(`🧾 Yangi to'lov cheki keldi: ${receiptId} (${receiptData.studentName})`);
 
@@ -595,7 +563,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         };
 
         mockRegistrations.push(newReg);
-        saveJSON(MOCK_PATH, mockRegistrations);
+        saveJSON(MOCK_PATH, mockRegistrations, 'mock_tests');
 
         // Google Sheets ga yuborish
         const sheetUrl = getConfig().google_sheet_url;
@@ -668,15 +636,19 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         mockConfig.shift2Name = data.shift2Name || "2-smena (14:00 - 17:00)";
         mockConfig.shift2Slots = parseInt(data.shift2Slots, 10) || 10;
         mockConfig.publishedAt = new Date().toISOString();
-        saveJSON(MOCK_CONFIG_PATH, mockConfig);
+        saveJSON(MOCK_CONFIG_PATH, mockConfig, 'mock_config');
 
         console.log(`📢 Yangi Mock Test e'lon qilindi: ${mockConfig.title} (${mockConfig.date})`);
 
         // Telegram kanalga marketing e'lonini yuborish
+        let channelWarn = '';
         if (data.sendTelegram) {
           const cfg = getConfig();
-          const targetChannel = cfg.channel_username || '@Apex_Academy_Official';
-          const postText = `
+          const targetChannel = data.channelUsername || cfg.channel_username;
+          if (!targetChannel) {
+            channelWarn = ' (Telegram kanal @username kiritilmagan — Auto-SMM bo\'limida kanalni saqlang)';
+          } else {
+            const postText = `
 🎯 <b>DIQQAT, NAVBATDAGI RASMIY MOCK EXAM E'LON QILINDI!</b> 🚀
 
 📚 <b>Imtihon:</b> ${mockConfig.title}
@@ -688,23 +660,27 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
 ⏰ <b>2-smena:</b> ${mockConfig.shift2Name} (${mockConfig.shift2Slots} ta o'rin)
 
 ⚡ <i>Joylar soni cheklangan! Chipta olish uchun quyidagi tugmani bosing:</i>
-          `.trim();
+            `.trim();
 
-          const replyMarkup = {
-            inline_keyboard: [
-              [{ text: '🎟 Mock Testga Yozilish (Chipta Olish)', url: `https://t.me/${cfg.bot_username || 'eduwithn8n_bot'}?start=mock` }]
-            ]
-          };
+            const replyMarkup = {
+              inline_keyboard: [
+                [{ text: '🎟 Mock Testga Yozilish (Chipta Olish)', url: `https://t.me/${cfg.bot_username || 'eduwithn8n_bot'}?start=mock` }]
+              ]
+            };
 
-          try {
-            await sendTelegramMessage(targetChannel, postText, replyMarkup);
-          } catch (te) {
-            console.error('Kanalga post yuborishda xato:', te);
+            try {
+              const tgRes = await sendTelegramMessage(targetChannel, postText, replyMarkup);
+              if (!tgRes || !tgRes.ok) {
+                channelWarn = ` (Kanalga yuborilmadi: ${tgRes?.description || 'Bot kanalda admin ekanini tekshiring'})`;
+              }
+            } catch (te) {
+              channelWarn = ' (Kanalga ulanishda xatolik)';
+            }
           }
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, message: 'Mock test muvaffaqiyatli e\'lon qilindi!', mockConfig }));
+        res.end(JSON.stringify({ success: true, message: 'Mock test muvaffaqiyatli e\'lon qilindi!' + channelWarn, mockConfig }));
       } catch (e) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, message: e.message }));
@@ -727,7 +703,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         if (data.date) mockConfig.date = data.date;
         if (data.shift1Slots) mockConfig.shift1Slots = parseInt(data.shift1Slots, 10);
         if (data.shift2Slots) mockConfig.shift2Slots = parseInt(data.shift2Slots, 10);
-        saveJSON(MOCK_CONFIG_PATH, mockConfig);
+        saveJSON(MOCK_CONFIG_PATH, mockConfig, 'mock_config');
         console.log(`🎯 Mock Test holati o'zgartirildi: ${mockConfig.isOpen ? "OCHIQ (Faol)" : "YOPIQ (Yashirin)"}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, mockConfig }));
@@ -739,15 +715,16 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
     return;
   }
 
-  // 12.2 Kurslar ro'yxati: GET /api/courses
+  // 12.2 Kurslar ro'yxati (Google Sheets bilan sinxronlangan): GET /api/courses
   if (req.method === 'GET' && pathname === '/api/courses') {
+    await storage.syncCoursesOnly(false);
     const courses = loadJSON(COURSES_PATH) || [];
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, courses }));
     return;
   }
 
-  // 12.3 Yangi kurs qo'shish: POST /api/courses/add
+  // 12.3 Yangi kurs qo'shish (Mini App + Google Sheets 'Kurslar'): POST /api/courses/add
   if (req.method === 'POST' && pathname === '/api/courses/add') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
@@ -759,6 +736,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         newCourse.createdAt = new Date().toISOString();
         courses.push(newCourse);
         saveJSON(COURSES_PATH, courses);
+        storage.pushToSheets({ action: 'sync_course_add', course: newCourse });
         console.log(`📚 Yangi kurs qo'shildi: ${newCourse.name}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, course: newCourse }));
@@ -778,8 +756,10 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
       try {
         const { id } = JSON.parse(body);
         let courses = loadJSON(COURSES_PATH) || [];
+        const removed = courses.find(c => c.id == id);
         courses = courses.filter(c => c.id != id);
         saveJSON(COURSES_PATH, courses);
+        storage.pushToSheets({ action: 'sync_course_delete', id, name: removed?.name || '' });
         console.log(`🗑 Kurs o'chirildi (ID: ${id})`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -834,7 +814,20 @@ Shoshiling, guruhda faqat 10 ta joy bor!
       try {
         const { postText, channelUsername } = JSON.parse(body);
         const cfg = getConfig();
-        const targetChannel = channelUsername || cfg.channel_username || '@apex_academy_news';
+        let targetChannel = (channelUsername || cfg.channel_username || '').trim();
+        if (targetChannel && !targetChannel.startsWith('@') && !targetChannel.startsWith('-')) {
+          targetChannel = '@' + targetChannel;
+        }
+
+        if (!targetChannel) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Telegram kanal @username ni kiriting!' }));
+          return;
+        }
+
+        if (channelUsername) {
+          saveConfig({ channel_username: targetChannel });
+        }
 
         const replyMarkup = {
           inline_keyboard: [
@@ -843,13 +836,118 @@ Shoshiling, guruhda faqat 10 ta joy bor!
         };
 
         const result = await sendTelegramMessage(targetChannel, postText, replyMarkup);
+        if (!result || !result.ok) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: result?.description || 'Kanalga yuborib bo\'lmadi (Bot kanalda Admin ekanini tekshiring)'
+          }));
+          return;
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, result, message: 'Post kanalga yuborildi!' }));
+        res.end(JSON.stringify({ success: true, result, channel: targetChannel, message: `Post ${targetChannel} kanaliga yuborildi!` }));
       } catch (e) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: e.message }));
       }
     });
+    return;
+  }
+
+  // 14.1 Markaz sozlamalari (Telegram kanal): GET /api/settings va POST /api/settings/channel
+  if (req.method === 'GET' && pathname === '/api/settings') {
+    const cfg = getConfig();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, channel_username: cfg.channel_username || '' }));
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/settings/channel') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => {
+      try {
+        const { channelUsername } = JSON.parse(body);
+        let ch = String(channelUsername || '').trim();
+        if (ch && !ch.startsWith('@') && !ch.startsWith('-')) ch = '@' + ch;
+        saveConfig({ channel_username: ch });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, channel_username: ch }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // 14.2 O'quvchi shaxsiy kabineti (Haqiqiy Davomat va To'lov holati): GET /api/student/profile
+  if (req.method === 'GET' && pathname === '/api/student/profile') {
+    const rawPhone = parsedUrl.query.phone || '';
+    const rawChatId = parsedUrl.query.chatId || '';
+    const rawName = (parsedUrl.query.name || '').trim().toLowerCase();
+    const users = loadJSON(path.join(__dirname, 'users.json'), {});
+
+    let phoneClean = cleanPhone(rawPhone);
+    let studentName = rawName;
+    if (!phoneClean && rawChatId) {
+      for (const p in users) {
+        if (Number(users[p]?.chatId) === Number(rawChatId)) {
+          phoneClean = cleanPhone(p);
+          studentName = studentName || String(users[p]?.name || '').toLowerCase();
+          break;
+        }
+      }
+    }
+
+    const records = loadJSON(ATTENDANCE_PATH) || [];
+    const history = [];
+    let presentCount = 0;
+    let absentCount = 0;
+
+    const matchesStudent = (s) => {
+      const sp = cleanPhone(s?.phone);
+      const sn = String(s?.name || '').trim().toLowerCase();
+      if (phoneClean && sp && (sp === phoneClean || sp.endsWith(phoneClean) || phoneClean.endsWith(sp))) return true;
+      if (studentName && sn && sn === studentName) return true;
+      return false;
+    };
+
+    records.forEach(rec => {
+      if (Array.isArray(rec.presentStudents) && rec.presentStudents.some(matchesStudent)) {
+        presentCount++;
+        history.push({ groupName: rec.groupName || 'Guruh', date: rec.date || '', status: 'Keldi', savedAt: rec.savedAt || '' });
+      } else if (Array.isArray(rec.absentStudents) && rec.absentStudents.some(matchesStudent)) {
+        absentCount++;
+        history.push({ groupName: rec.groupName || 'Guruh', date: rec.date || '', status: 'Kelmadi', savedAt: rec.savedAt || '' });
+      }
+    });
+
+    const total = presentCount + absentCount;
+    const rate = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+
+    const receipts = loadJSON(path.join(__dirname, 'receipts.json'), []);
+    const myReceipts = receipts.filter(r => {
+      const rp = cleanPhone(r.studentPhone);
+      if (rawChatId && r.chatId && Number(r.chatId) === Number(rawChatId)) return true;
+      if (phoneClean && rp && (rp === phoneClean || rp.endsWith(phoneClean) || phoneClean.endsWith(rp))) return true;
+      return false;
+    });
+    const latestReceipt = myReceipts.length > 0 ? myReceipts[myReceipts.length - 1] : null;
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: true,
+      attendance: {
+        total,
+        presentCount,
+        absentCount,
+        rate,
+        history: history.reverse().slice(0, 6)
+      },
+      latestReceipt
+    }));
     return;
   }
 
@@ -907,7 +1005,7 @@ Shoshiling, guruhda faqat 10 ta joy bor!
 
         let leads = loadJSON(LEADS_PATH);
         leads.push({ ...data, receivedAt: new Date().toISOString() });
-        saveJSON(LEADS_PATH, leads);
+        saveJSON(LEADS_PATH, leads, 'leads');
 
         // n8n Webhook ga to'g'ridan-to'g'ri yuborish
         try {
@@ -1003,4 +1101,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Apex Academy Master Tizim Serveri Ishga Tushdi!`);
   console.log(`👉 Lokal manzil: http://localhost:${PORT}`);
   console.log(`===============================================`);
+  storage.syncAllFromSheets(true);
 });

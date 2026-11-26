@@ -9,62 +9,27 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const storage = require('./storage.js');
 
-const CONFIG_PATH = path.join(__dirname, 'bot_config.json');
 const TEACHERS_PATH = path.join(__dirname, 'teachers.json');
 const RECEIPTS_PATH = path.join(__dirname, 'receipts.json');
 const USERS_PATH = path.join(__dirname, 'users.json');
 const N8N_CHAT_WEBHOOK = 'https://abdisayimov.app.n8n.cloud/webhook/apex-chat';
 
+const { cleanPhone, loadJSON, saveJSON } = storage;
+
 // Ro'yxatdan o'tgan foydalanuvchilar chat_id lari (tezkor xotira sessiyasi)
 const authorizedUsers = new Set();
 
-let config = {
-  bot_token: '',
-  web_app_url: 'http://localhost:3000',
-  admin_chat_id: null,
-  google_sheet_url: ''
-};
+let config = {};
 
 function loadConfig() {
-  let fileCfg = {};
-  if (fs.existsSync(CONFIG_PATH)) {
-    try {
-      fileCfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-    } catch (e) {}
-  }
-  config = {
-    bot_token: process.env.BOT_TOKEN || fileCfg.bot_token || config.bot_token || '',
-    web_app_url: process.env.WEB_APP_URL || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL : null) || fileCfg.web_app_url || config.web_app_url || 'http://localhost:3000',
-    admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || config.admin_chat_id || 5565743745),
-    google_sheet_url: process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || config.google_sheet_url || 'https://script.google.com/macros/s/AKfycbzgm2zwOCtb-WakWg2vSPTUQrHGrHdFMTgi9QYVsHtSHMvCVn9CgXdgX3HiG3fAwS5J2Q/exec'
-  };
+  config = storage.getConfig();
 }
 loadConfig();
 
 function saveConfig() {
-  try {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
-  } catch (e) {}
-}
-
-function cleanPhone(p) {
-  return String(p || '').replace(/\D/g, '');
-}
-
-function loadJSON(filePath, def = []) {
-  if (fs.existsSync(filePath)) {
-    try {
-      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    } catch (e) {}
-  }
-  return def;
-}
-
-function saveJSON(filePath, data) {
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e) {}
+  storage.saveConfig({ admin_chat_id: config.admin_chat_id });
 }
 
 function loadTeachers() {
@@ -262,7 +227,7 @@ async function handleUpdate(update) {
         receipt.status = 'Tasdiqlandi';
         receipt.approvedBy = adminUser;
         receipt.approvedAt = new Date().toISOString();
-        saveJSON(RECEIPTS_PATH, receipts);
+        saveJSON(RECEIPTS_PATH, receipts, 'receipts');
 
         await answerCallbackQuery(cq.id, `✅ Chek #${receiptId} muvaffaqiyatli TASDIQLANDI!`, false);
 
@@ -339,7 +304,7 @@ Darslaringizda omad tilaymiz! 🚀
         receipt.status = 'Rad etildi';
         receipt.rejectedBy = adminUser;
         receipt.rejectedAt = new Date().toISOString();
-        saveJSON(RECEIPTS_PATH, receipts);
+        saveJSON(RECEIPTS_PATH, receipts, 'receipts');
 
         await answerCallbackQuery(cq.id, `❌ Chek #${receiptId} RAD ETILDI!`, true);
 
@@ -422,7 +387,7 @@ Iltimos, haqiqiy to'lov skrinshotini (Click / Payme kvitansiyasini) ilovamiz orq
       role: teacher ? 'teacher' : 'student',
       updatedAt: new Date().toISOString()
     };
-    saveJSON(USERS_PATH, users);
+    saveJSON(USERS_PATH, users, 'users');
 
     if (teacher) {
       // Bu O'QITUVCHI yoki ADMIN!
@@ -558,7 +523,9 @@ Xavfsizlik va tizim sizga mos bo'limni (<b>O'qituvchilar Paneli</b> yoki <b>O'qu
 }
 
 async function start() {
+  await storage.syncAllFromSheets(true);
   loadConfig();
+  loadAuthorizedUsers();
   console.log('🤖 Apex Academy Xavfsiz Bot Controller ishga tushmoqda...');
   if (!config.bot_token) {
     console.error('❌ bot_config.json da bot_token topilmadi.');
