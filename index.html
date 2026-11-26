@@ -242,12 +242,15 @@
         <h4 class="text-sm font-bold text-white mb-1 flex items-center gap-2">
           <i class="fa-solid fa-location-dot text-rose-500"></i> Bizning Markaz
         </h4>
-        <p class="text-xs text-slate-300 mb-3">Toshkent sh., Chilonzor metrosi yonida, 5-bino. Mo'ljal: Korzinka ro'parasi.</p>
+        <p class="text-xs text-slate-300 mb-1.5">Qashqadaryo viloyati, Qarshi shahri.</p>
+        <p onclick="copyCenterPhone()" class="text-xs text-emerald-400 font-semibold mb-3 flex items-center gap-1.5 cursor-pointer w-fit" title="Raqamni nusxalash">
+          <i class="fa-solid fa-phone text-[10px]"></i> +998 95 901 14 45
+        </p>
         <div class="grid grid-cols-2 gap-2">
-          <a href="tel:+998959011445" class="py-2.5 px-3 bg-slate-800/90 rounded-xl text-center text-xs font-semibold text-slate-200 border border-white/5 flex items-center justify-center gap-2">
+          <a href="tel:+998959011445" class="py-2.5 px-3 bg-slate-800/90 hover:bg-slate-800 rounded-xl text-center text-xs font-semibold text-slate-200 border border-white/5 flex items-center justify-center gap-2 active:scale-95">
             <i class="fa-solid fa-phone text-emerald-400"></i> Qo'ng'iroq
           </a>
-          <button onclick="openTelegramBot()" class="py-2.5 px-3 bg-indigo-600/20 rounded-xl text-center text-xs font-semibold text-indigo-300 border border-indigo-500/30 flex items-center justify-center gap-2">
+          <button onclick="openTelegramBot()" class="py-2.5 px-3 bg-indigo-600/20 hover:bg-indigo-600/30 rounded-xl text-center text-xs font-semibold text-indigo-300 border border-indigo-500/30 flex items-center justify-center gap-2 active:scale-95">
             <i class="fa-brands fa-telegram text-indigo-400"></i> Botga Qaytish
           </button>
         </div>
@@ -2369,11 +2372,23 @@ Ma'lumotlaringiz markazimiz jadvaliga (Google Sheets) kiritildi. Tez orada admin
       if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
     }
 
+    function copyCenterPhone() {
+      const phone = '+998959011445';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(phone).then(() => {
+          alert('📞 Telefon raqam nusxalandi: +998 95 901 14 45');
+        }).catch(() => {});
+      }
+    }
+
     function openTelegramBot() {
-      if (tg) {
-        tg.openTelegramLink('https://t.me/apex_edu_sherzod_bot');
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+      if (tg && tg.initData) {
+        tg.close();
+      } else if (tg?.openTelegramLink) {
+        tg.openTelegramLink('https://t.me/eduwithn8n_bot');
       } else {
-        window.open('https://t.me/apex_edu_sherzod_bot', '_blank');
+        window.open('https://t.me/eduwithn8n_bot', '_blank');
       }
     }
   </script>

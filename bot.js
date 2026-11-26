@@ -369,7 +369,7 @@ Hurmatli <b>${receipt.studentName}</b>!
 Siz yuklagan to'lov chekida noaniqlik aniqlandi va ma'muriyat tomonidan qabul qilinmadi.
 
 Iltimos, haqiqiy to'lov skrinshotini (Click / Payme kvitansiyasini) ilovamiz orqali qaytadan yuklang yoki ma'muriyat bilan bog'laning:
-📞 <b>Telefon:</b> +998 90 123 45 67
+📞 <b>Telefon:</b> +998 95 901 14 45
 
 <i>— Apex Academy</i>
           `;
