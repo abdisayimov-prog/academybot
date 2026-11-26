@@ -31,12 +31,12 @@ function getConfig() {
     } catch (e) {}
   }
   return {
-    bot_token: process.env.BOT_TOKEN || fileCfg.bot_token || '',
-    bot_username: process.env.BOT_USERNAME || fileCfg.bot_username || 'eduwithn8n_bot',
-    web_app_url: process.env.WEB_APP_URL || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL : null) || fileCfg.web_app_url || '',
+    bot_token: (process.env.BOT_TOKEN || fileCfg.bot_token || '').trim(),
+    bot_username: (process.env.BOT_USERNAME || fileCfg.bot_username || 'eduwithn8n_bot').trim(),
+    web_app_url: (process.env.WEB_APP_URL || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL : null) || fileCfg.web_app_url || '').trim(),
     admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || 5565743745),
-    channel_username: process.env.CHANNEL_USERNAME || fileCfg.channel_username || '',
-    google_sheet_url: process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || DEFAULT_GOOGLE_SHEET_URL
+    channel_username: (process.env.CHANNEL_USERNAME || fileCfg.channel_username || '').trim(),
+    google_sheet_url: (process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || DEFAULT_GOOGLE_SHEET_URL).trim()
   };
 }
 
@@ -110,7 +110,7 @@ async function syncAllFromSheets(force = false) {
     });
     const text = await res.text();
     if (!text.trim().startsWith('{')) {
-      lastSyncStatus = { ok: false, error: `Non-JSON (${res.status}): ${text.slice(0, 80)}`, at: new Date().toISOString(), coursesCount: 0 };
+      lastSyncStatus = { ok: false, error: `Non-JSON (${res.status})`, urlTail: sheetUrl.slice(-24), at: new Date().toISOString(), coursesCount: 0 };
       return false; // Eski Apps Script HTML qaytarsa tizimni to'xtatmaslik
     }
     const data = JSON.parse(text);
@@ -171,7 +171,7 @@ async function syncCoursesOnly(force = false) {
     });
     const text = await res.text();
     if (!text.trim().startsWith('{')) {
-      lastSyncStatus = { ok: false, error: `get_courses non-JSON (${res.status}): ${text.slice(0, 80)}`, at: new Date().toISOString(), coursesCount: 0 };
+      lastSyncStatus = { ok: false, error: `get_courses non-JSON (${res.status})`, urlTail: sheetUrl.slice(-24), at: new Date().toISOString(), coursesCount: 0 };
       return null;
     }
     const data = JSON.parse(text);
