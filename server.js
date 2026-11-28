@@ -613,19 +613,22 @@ const server = http.createServer(async (req, res) => {
         records.push({ ...record, savedAt: new Date().toISOString() });
         saveJSON(ATTENDANCE_PATH, records, 'attendance');
 
-        // Darsga kelmagan (absent) o'quvchilar ota-onasiga Telegram xabarnoma (0 so'm, SMS siz!)
+        // Darsga kelmagan (absent) o'quvchilar ota-onasiga (yoki o'quvchiga) Telegram xabarnoma (0 so'm, SMS siz!)
         if (record.absentStudents && Array.isArray(record.absentStudents)) {
           const users = loadJSON(path.join(__dirname, 'users.json'), {});
           for (const s of record.absentStudents) {
-            const studentPhoneClean = cleanPhone(s.phone);
-            const targetChatId = s.chatId || (users[studentPhoneClean] ? users[studentPhoneClean].chatId : null);
+            const parentChatId = s.parentChatId || findStudentChatId(s.parentPhone, users);
+            const studentChatId = s.chatId || findStudentChatId(s.phone, users);
+            const targetChatId = parentChatId || studentChatId;
             console.log(`⚠️ Davomat xabarnomasi: ${s.name} (${record.groupName}) darsga kelmadi.`);
             if (targetChatId) {
+              const greeting = parentChatId
+                ? `Hurmatli ota-ona!\nFarzandingiz <b>${s.name}</b>`
+                : `Hurmatli <b>${s.name}</b>! Siz`;
               const alertMsg = `
 ⚠️ <b>Darsga qatnashmadi xabarnomasi</b>
 
-Hurmatli ota-ona!
-Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'ulotiga kelmadi.
+${greeting} bugun <b>${record.groupName || 'dars'}</b> mashg'ulotiga kelmadi.
 
 <i>Ma'lumot uchun markaz ma'muriyati bilan bog'lanishingiz mumkin: +998 95 901 14 45
 — Apex Academy</i>
@@ -1250,7 +1253,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
   }
 
   // Ariza yuborgan o'quvchini mos guruhga avtomatik qo'shish yordamchisi
-  function autoAssignStudentToGroup({ name, phone, course, preferredTime, chatId: dataChatId }) {
+  function autoAssignStudentToGroup({ name, phone, parentPhone, course, preferredTime, chatId: dataChatId }) {
     if (!name && !phone) return null;
     const groups = loadJSON(GROUPS_PATH) || [];
     const courses = loadJSON(COURSES_PATH) || [];
@@ -1306,6 +1309,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
 
     if (!Array.isArray(targetGroup.students)) targetGroup.students = [];
     const resolvedChatId = dataChatId || findStudentChatId(phone);
+    const resolvedParentChatId = parentPhone ? findStudentChatId(parentPhone) : null;
     const existingStudent = targetGroup.students.find(s => {
       const sp = cleanPhone(s.phone);
       if (phoneClean && sp) return sp === phoneClean || sp.endsWith(phoneClean) || phoneClean.endsWith(sp);
@@ -1316,11 +1320,15 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
       targetGroup.students.push({
         name: name || "O'quvchi",
         phone: phone || '',
+        parentPhone: parentPhone || '',
         chatId: resolvedChatId || undefined,
+        parentChatId: resolvedParentChatId || undefined,
         addedAt: new Date().toISOString()
       });
-    } else if (resolvedChatId && !existingStudent.chatId) {
-      existingStudent.chatId = resolvedChatId;
+    } else {
+      if (resolvedChatId && !existingStudent.chatId) existingStudent.chatId = resolvedChatId;
+      if (parentPhone && !existingStudent.parentPhone) existingStudent.parentPhone = parentPhone;
+      if (resolvedParentChatId && !existingStudent.parentChatId) existingStudent.parentChatId = resolvedParentChatId;
     }
 
     saveJSON(GROUPS_PATH, groups, 'groups');
@@ -1334,6 +1342,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
     req.on('end', async () => {
       try {
         const data = JSON.parse(body);
+        const cfgNow = getConfig();
         const fromN8n = data.source === 'n8n' || data.skipN8nWebhook === true;
         console.log('📌 Yangi ariza keldi:', data);
 
@@ -1344,8 +1353,34 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         // O'quvchini guruhga AVTOMATIK qo'shish (ustoz qo'lda qo'shib o'tirmaydi)
         const assignedGroup = autoAssignStudentToGroup(data);
 
-        // n8n Webhook ga to'g'ridan-to'g'ri yuborish (n8n ning o'zidan kelgan bo'lsa halqa bo'lmasligi uchun o'tkazib yuboramiz)
-        if (!fromN8n) {
+        const sheetUrl = cfgNow.google_sheet_url;
+        let syncedDirectToSheet = false;
+        if (sheetUrl && !data.skipSheetSync) {
+          try {
+            console.log('📊 Google Sheets ga yuborilmoqda...');
+            const sheetRes = await fetch(sheetUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: data.action || 'enrollment',
+                name: data.name,
+                phone: data.phone,
+                parentPhone: data.parentPhone || '',
+                course: data.course,
+                preferredTime: data.preferredTime || 'Moslashuvchan',
+                date: data.date || new Date().toISOString()
+              })
+            });
+            const sheetTxt = await sheetRes.text();
+            syncedDirectToSheet = sheetRes.ok;
+            console.log('✅ Google Sheets muvaffaqiyatli qabul qildi:', sheetRes.status, sheetTxt);
+          } catch (sheetErr) {
+            console.error('❌ Google Sheets xatosi:', sheetErr.message);
+          }
+        }
+
+        // n8n apex-lead webhookiga faqat ruxsat etilganda yoki Sheets yozilmaganda yuborish (dublikat bo'lmasligi uchun)
+        if (!fromN8n && (cfgNow.enable_n8n_lead_webhook || !syncedDirectToSheet)) {
           try {
             fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
               method: 'POST',
@@ -1358,29 +1393,6 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
               })
             }).catch(e => console.error('n8n webhook err:', e.message));
           } catch (e) {}
-        }
-
-        const sheetUrl = getConfig().google_sheet_url;
-        if (sheetUrl && !data.skipSheetSync) {
-          try {
-            console.log('📊 Google Sheets ga yuborilmoqda...');
-            const sheetRes = await fetch(sheetUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: data.action || 'enrollment',
-                name: data.name,
-                phone: data.phone,
-                course: data.course,
-                preferredTime: data.preferredTime || 'Moslashuvchan',
-                date: data.date || new Date().toISOString()
-              })
-            });
-            const sheetTxt = await sheetRes.text();
-            console.log('✅ Google Sheets muvaffaqiyatli qabul qildi:', sheetRes.status, sheetTxt);
-          } catch (sheetErr) {
-            console.error('❌ Google Sheets xatosi:', sheetErr.message);
-          }
         }
 
         // Bosh Adminga darhol Telegramdan bildirishnoma yuborish

@@ -67,6 +67,7 @@ function getConfig() {
     admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || 5565743745),
     channel_username: normalizeChannelTarget(process.env.CHANNEL_USERNAME || fileCfg.channel_username || ''),
     google_sheet_url: (process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || DEFAULT_GOOGLE_SHEET_URL).trim(),
+    enable_n8n_lead_webhook: process.env.ENABLE_N8N_LEAD_WEBHOOK === 'true' || !!fileCfg.enable_n8n_lead_webhook,
     last_payment_reminder_date: fileCfg.last_payment_reminder_date || '',
     last_director_report_month: fileCfg.last_director_report_month || ''
   };

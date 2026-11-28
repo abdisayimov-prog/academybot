@@ -14,6 +14,7 @@ const storage = require('./storage.js');
 const TEACHERS_PATH = path.join(__dirname, 'teachers.json');
 const RECEIPTS_PATH = path.join(__dirname, 'receipts.json');
 const USERS_PATH = path.join(__dirname, 'users.json');
+const COURSES_PATH = path.join(__dirname, 'courses.json');
 const N8N_CHAT_WEBHOOK = 'https://abdisayimov.app.n8n.cloud/webhook/apex-chat';
 
 const { cleanPhone, loadJSON, saveJSON } = storage;
@@ -22,6 +23,60 @@ const { cleanPhone, loadJSON, saveJSON } = storage;
 const authorizedUsers = new Set();
 // Kanal tugmalaridan (?start=mock / ?start=enroll) kelgan kutilayotgan harakatlar
 const pendingActions = new Map();
+// Suhbat davomida tilga olingan oxirgi kurs nomi (chatId -> courseName)
+const lastCourseByChat = new Map();
+
+function detectCourseFromText(text) {
+  const lower = String(text || '').toLowerCase();
+  const courses = loadJSON(COURSES_PATH, []);
+  if (Array.isArray(courses)) {
+    const exact = courses.find(c => {
+      const cn = String(c?.name || '').trim().toLowerCase();
+      return cn && (lower.includes(cn) || cn.split(/\s+/).some(w => w.length >= 3 && lower.includes(w)));
+    });
+    if (exact) return exact.name;
+  }
+  if (lower.includes('ielts') || lower.includes('ingliz')) return 'IELTS Intensive';
+  if (lower.includes('matem') || lower.includes('hisob')) return 'Matematika';
+  if (lower.includes('frontend') || lower.includes('react') || lower.includes('dastur') || /\bit\b/.test(lower)) return 'IT & Dasturlash';
+  return null;
+}
+
+async function autoEnrollFromBotChat(chatId, text, aiReply, authorizedUser) {
+  const detectedFromUser = detectCourseFromText(text);
+  const detectedFromReply = detectCourseFromText(aiReply);
+  if (detectedFromUser) lastCourseByChat.set(Number(chatId), detectedFromUser);
+
+  const isConfirmed = /(ro['’`]?yxatga.*(olindi|qo['’`]?sh)|ro['’`]?yxatdan\s*o['’`]?t|arizangiz\s*qabul|qabul\s*qilindi|guruhga.*qo['’`]?sh|administrator.*bog['’`]?lan)/i.test(String(aiReply || ''));
+  if (!isConfirmed) return;
+
+  const phoneMatch = String(text || '').match(/(?:\+?998[\s-]?)?(?:90|91|93|94|95|97|98|99|88|33|77)[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|\b\d{9}\b/);
+  const phone = phoneMatch ? phoneMatch[0].replace(/[^\d+]/g, '') : (authorizedUser.rawPhone || authorizedUser.phone || '');
+  if (!phone) return;
+
+  const course = detectedFromReply || detectedFromUser || lastCourseByChat.get(Number(chatId)) || 'Umumiy kurs';
+  const localPort = process.env.PORT || 3000;
+  const targets = [`http://127.0.0.1:${localPort}/api/enroll`];
+  if (config.web_app_url) targets.push(`${config.web_app_url.replace(/\/$/, '')}/api/enroll`);
+
+  for (const endpoint of targets) {
+    try {
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: authorizedUser.name || "O'quvchi",
+          phone,
+          course,
+          chatId,
+          source: 'n8n',
+          skipSheetSync: true
+        })
+      });
+      if (r.ok) break;
+    } catch (e) {}
+  }
+}
 
 /**
  * Telegram chatId orqali users.json dan foydalanuvchini topadi.
@@ -586,6 +641,7 @@ ${actionIntro}
       await telegramRequest('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
       const aiReply = await forwardToN8n(text, chatId, authorizedUser);
       await sendMessage(chatId, aiReply || 'Savolingiz qabul qilindi.');
+      await autoEnrollFromBotChat(chatId, text, aiReply, authorizedUser);
     } catch (err) {
       console.error('❌ n8n apex-chat xatosi:', err.message);
       await sendMessage(chatId, '⚠️ AI maslahatchi hozircha band yoki n8n <code>apex-chat</code> webhook hali faollashtirilmagan. Iltimos, birozdan so\'ng qayta yozing yoki pastdagi ilovadan foydalaning.');
