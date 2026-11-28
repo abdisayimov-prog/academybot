@@ -2618,7 +2618,14 @@
 
       const phoneMatch = text.match(/(?:\+?998[\s-]?)?(?:90|91|93|94|95|97|98|99|88|33|77)[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|\b\d{9}\b/);
       const lower = text.toLowerCase();
-      if (lower.includes('ielts') || lower.includes('ingliz')) chatUserPendingCourse = 'IELTS Intensive';
+      const dynamicCourseMatch = Array.isArray(allCoursesData)
+        ? allCoursesData.find(c => {
+            const cn = String(c?.name || '').trim().toLowerCase();
+            return cn && (lower.includes(cn) || cn.split(/\s+/).some(w => w.length >= 3 && lower.includes(w)));
+          })
+        : null;
+      if (dynamicCourseMatch) chatUserPendingCourse = dynamicCourseMatch.name;
+      else if (lower.includes('ielts') || lower.includes('ingliz')) chatUserPendingCourse = 'IELTS Intensive';
       else if (lower.includes('frontend') || lower.includes('react') || lower.includes('it') || lower.includes('dastur')) chatUserPendingCourse = 'Frontend Dasturlash';
       else if (lower.includes('python') || lower.includes('django')) chatUserPendingCourse = 'Python & Django';
       else if (lower.includes('matem') || lower.includes('hisob')) chatUserPendingCourse = 'Matematika & Mantiq';
@@ -2640,27 +2647,21 @@
           course: chatUserPendingCourse,
           name: studentName,
           phone: cleanPhone,
+          chatId: tg?.initDataUnsafe?.user?.id || null,
+          source: 'webapp-ai',
           preferredTime: 'Kechki (18:30 - 20:30)',
           date: new Date().toISOString()
         };
 
+        let assignedGroup = null;
         try {
-          fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              course: chatUserPendingCourse,
-              name: studentName,
-              phone: cleanPhone,
-              date: new Date().toLocaleDateString('uz-UZ')
-            })
-          }).catch(() => {});
-
-          await fetch('/api/enroll', {
+          const enrollRes = await fetch('/api/enroll', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
+          const enrollData = await enrollRes.json();
+          assignedGroup = enrollData.assignedGroup || null;
         } catch(err) {}
 
         if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');

@@ -779,23 +779,16 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         }
 
         if (isApproved) {
-          const sheetUrl = getConfig().google_sheet_url;
-          if (sheetUrl) {
-            fetch(sheetUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'payment_confirm',
-                receiptId: receipt.receiptId,
-                name: receipt.studentName,
-                phone: receipt.studentPhone,
-                course: receipt.course,
-                amount: receipt.amount,
-                status: 'To\'landi',
-                date: new Date().toISOString()
-              })
-            }).catch(() => {});
-          }
+          storage.pushToSheets({
+            action: 'payment_verified',
+            receiptId: receipt.receiptId,
+            name: receipt.studentName,
+            phone: receipt.studentPhone,
+            course: receipt.course,
+            amount: receipt.amount,
+            status: 'To\'landi',
+            date: new Date().toISOString()
+          }).catch(() => {});
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
