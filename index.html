@@ -1361,6 +1361,7 @@
       } else if (tab === 'attend') {
         btnAttend.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
         viewAttend.classList.remove('hidden');
+        fetchTeacherGroups();
       } else if (tab === 'courses') {
         if (btnCourses) btnCourses.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
         if (viewCourses) viewCourses.classList.remove('hidden');
@@ -1452,20 +1453,21 @@
         container.innerHTML = '';
         groups.forEach(g => {
           const div = document.createElement('div');
-          div.className = 'p-3.5 rounded-2xl bg-slate-900 border border-white/10 space-y-3';
-          
+          div.className = 'group-card p-3.5 rounded-2xl bg-slate-900 border border-white/10 space-y-3';
+          div.setAttribute('data-group-name', g.name || 'Guruh');
+
           let studentsHtml = '';
           const students = g.students && g.students.length > 0 ? g.students : [];
           if (students.length === 0) {
-            studentsHtml = '<p class="text-xs text-slate-500 py-2 text-center italic">Guruhda hali o\'quvchilar yo\'q</p>';
+            studentsHtml = '<p class="text-xs text-slate-500 py-2 text-center italic">Guruhda hali o\'quvchilar yo\'q. Ariza tushishi bilan o\'quvchilar avtomatik shu yerga qo\'shiladi.</p>';
           }
 
           students.forEach(s => {
             studentsHtml += `
-              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/5 text-xs">
+              <div class="student-attend-row flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/5 text-xs">
                 <div>
                   <div class="font-bold text-white">${s.name}</div>
-                  <div class="text-[10px] text-slate-400">${s.phone}</div>
+                  <div class="text-[10px] text-slate-400">${s.phone || ''}</div>
                 </div>
                 <button onclick="toggleAttendance(this)" class="attend-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   <i class="fa-solid fa-check mr-1"></i> Keldi
@@ -1478,7 +1480,7 @@
             <div class="flex items-center justify-between border-b border-white/5 pb-2">
               <div>
                 <span class="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">${g.days || 'Dush-Chor-Jum'} • ${g.time || '18:30'}</span>
-                <h4 class="text-sm font-extrabold text-white mt-1">${g.name}</h4>
+                <h4 class="text-sm font-extrabold text-white mt-1">${g.name} <span class="text-[11px] font-normal text-slate-400">(${students.length} ta)</span></h4>
               </div>
               <button onclick="handleDeleteGroup(${g.id})" class="text-slate-500 hover:text-rose-400 p-1.5 text-xs">
                 <i class="fa-solid fa-trash-can"></i>
@@ -1487,7 +1489,7 @@
             <div class="space-y-1.5">
               ${studentsHtml}
             </div>
-            <button onclick="saveAttendance()" class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-xs text-white active:scale-95 flex items-center justify-center gap-1.5 shadow-md">
+            <button onclick="saveAttendance(this)" class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-xs text-white active:scale-95 flex items-center justify-center gap-1.5 shadow-md">
               <i class="fa-solid fa-clipboard-check"></i> Guruh Davomatini Saqlash
             </button>
           `;
@@ -1617,15 +1619,17 @@
       }
     }
 
-    async function saveAttendance() {
+    async function saveAttendance(saveBtn) {
       if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-      
-      const attendButtons = document.querySelectorAll('#teacherGroupsContainer .attend-btn');
+
+      const groupCard = saveBtn ? saveBtn.closest('.group-card') : document.querySelector('#teacherGroupsContainer .group-card');
+      const groupName = groupCard?.getAttribute('data-group-name') || currentTeacherData?.group || 'Guruh';
+      const attendButtons = groupCard ? groupCard.querySelectorAll('.attend-btn') : document.querySelectorAll('#teacherGroupsContainer .attend-btn');
       const absentStudents = [];
       const presentStudents = [];
 
       attendButtons.forEach(btn => {
-        const studentCard = btn.closest('.flex.items-center.justify-between');
+        const studentCard = btn.closest('.student-attend-row') || btn.closest('.flex.items-center.justify-between');
         const sName = studentCard?.querySelector('.font-bold')?.textContent?.trim() || "O'quvchi";
         const sPhone = studentCard?.querySelector('.text-slate-400')?.textContent?.trim() || "";
 
@@ -1636,12 +1640,17 @@
         }
       });
 
+      if (presentStudents.length === 0 && absentStudents.length === 0) {
+        alert('Bu guruhda hali o\'quvchilar yo\'q.');
+        return;
+      }
+
       try {
         await fetch('/api/attendance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            groupName: currentTeacherData?.group || 'IELTS 18:30 (Kechki)',
+            groupName,
             teacherName: currentTeacherData?.name || 'Ustoz',
             date: new Date().toLocaleDateString('uz-UZ'),
             absentStudents,
@@ -1650,7 +1659,7 @@
         });
       } catch (e) {}
 
-      alert(`✅ Davomat saqlandi!\n\n${absentStudents.length > 0 ? `⚠️ Darsga kelmagan ${absentStudents.length} ta o'quvchining ota-onasiga Telegram bot orqali bepul xabarnoma yuborildi (0 so'm, SMS siz!).` : "🎉 Barcha o'quvchilar darsga to'liq qatnashdi!"}`);
+      alert(`✅ "${groupName}" guruhi davomati saqlandi!\n\n${absentStudents.length > 0 ? `⚠️ Darsga kelmagan ${absentStudents.length} ta o'quvchining ota-onasiga Telegram bot orqali bepul xabarnoma yuborildi (0 so'm, SMS siz!).` : "🎉 Barcha o'quvchilar darsga to'liq qatnashdi!"}`);
     }
 
     // --- TO'LOV CHEKINI YUKLASH (Masterplan 4-band) ---
@@ -2379,6 +2388,7 @@
       const course = (document.getElementById('selectedCourse') || document.getElementById('modalCourseName'))?.value || '';
       const name = (document.getElementById('userName') || document.getElementById('modalUserName'))?.value || '';
       const phone = (document.getElementById('userPhone') || document.getElementById('modalUserPhone'))?.value || '';
+      const preferredTime = document.getElementById('modalPreferredTime')?.value || 'Kechki (18:30 - 20:30)';
 
       if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
@@ -2387,16 +2397,18 @@
         fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ course, name, phone, date: new Date().toLocaleDateString('uz-UZ') })
+          body: JSON.stringify({ course, name, phone, preferredTime, date: new Date().toLocaleDateString('uz-UZ') })
         });
         if (tg) {
           try { tg.sendData(JSON.stringify({ course, name, phone, date: new Date().toLocaleDateString('uz-UZ') })); } catch(e){}
         }
-        // Ichki serverimizga ham zaxira sifatida saqlaymiz
+        // Ichki serverimizga saqlash + avtomatik guruhga qo'shish
         fetch('/api/enroll', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'enrollment', course, name, phone, date: new Date().toISOString() })
+          body: JSON.stringify({ action: 'enrollment', course, name, phone, preferredTime, date: new Date().toISOString() })
+        }).then(() => {
+          if (currentUserRole === 'teacher') fetchTeacherGroups();
         }).catch(err => console.log('API save err:', err));
       } catch (err) {
         console.log(err);

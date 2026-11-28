@@ -993,6 +993,80 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
     return;
   }
 
+  // Ariza yuborgan o'quvchini mos guruhga avtomatik qo'shish yordamchisi
+  function autoAssignStudentToGroup({ name, phone, course, preferredTime }) {
+    if (!name && !phone) return null;
+    const groups = loadJSON(GROUPS_PATH) || [];
+    const courses = loadJSON(COURSES_PATH) || [];
+    const teachers = loadJSON(TEACHERS_PATH) || [];
+    const courseTitle = String(course || 'Umumiy kurs').trim();
+    const courseLower = courseTitle.toLowerCase();
+    const prefLower = String(preferredTime || '').toLowerCase();
+    const phoneClean = cleanPhone(phone);
+
+    // 1. Mos kursli guruhlarni qidirish
+    const matchingGroups = groups.filter(g => {
+      const gc = String(g.course || '').trim().toLowerCase();
+      const gn = String(g.name || '').trim().toLowerCase();
+      return (gc && (gc === courseLower || gc.includes(courseLower) || courseLower.includes(gc))) ||
+             (gn && (gn.includes(courseLower) || courseLower.includes(gn)));
+    });
+
+    let targetGroup = null;
+    if (matchingGroups.length === 1) {
+      targetGroup = matchingGroups[0];
+    } else if (matchingGroups.length > 1) {
+      // Vaqt bo'yicha eng mosini topish
+      targetGroup = matchingGroups.find(g => {
+        const gt = `${g.name || ''} ${g.time || ''}`.toLowerCase();
+        if (prefLower.includes('ertalab') && (gt.includes('ertalab') || gt.includes('09:') || gt.includes('10:') || gt.includes('11:'))) return true;
+        if (prefLower.includes('tushdan') && (gt.includes('tush') || gt.includes('14:') || gt.includes('15:') || gt.includes('16:'))) return true;
+        if (prefLower.includes('kech') && (gt.includes('kech') || gt.includes('18:') || gt.includes('19:') || gt.includes('20:'))) return true;
+        return false;
+      }) || matchingGroups[0];
+    }
+
+    // 2. Agar bu kurs bo'yicha hali guruh ochilmagan bo'lsa -> avtomatik ochamiz
+    if (!targetGroup) {
+      const matchedCourse = courses.find(c => String(c.name || '').trim().toLowerCase() === courseLower);
+      const matchedTeacher = teachers.find(t => {
+        const ac = String(t.assignedCourse || '').toLowerCase();
+        return ac && !ac.includes('barcha') && (courseLower.includes(ac) || ac.includes(courseLower));
+      }) || teachers[0];
+
+      const scheduleStr = matchedCourse?.schedule || preferredTime || 'Dush-Chor-Jum';
+      targetGroup = {
+        id: Date.now() + Math.floor(Math.random() * 100),
+        name: `${courseTitle} (${preferredTime ? preferredTime.split('(')[0].trim() : 'Asosiy'})`,
+        course: courseTitle,
+        teacherPhone: matchedTeacher?.phone || '+998959011445',
+        teacherName: matchedTeacher?.name || 'Sherzodbek',
+        days: scheduleStr,
+        time: preferredTime || scheduleStr,
+        students: []
+      };
+      groups.unshift(targetGroup);
+    }
+
+    if (!Array.isArray(targetGroup.students)) targetGroup.students = [];
+    const alreadyInGroup = targetGroup.students.some(s => {
+      const sp = cleanPhone(s.phone);
+      if (phoneClean && sp) return sp === phoneClean || sp.endsWith(phoneClean) || phoneClean.endsWith(sp);
+      return String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase();
+    });
+
+    if (!alreadyInGroup) {
+      targetGroup.students.push({
+        name: name || "O'quvchi",
+        phone: phone || '',
+        addedAt: new Date().toISOString()
+      });
+    }
+
+    saveJSON(GROUPS_PATH, groups, 'groups');
+    return targetGroup;
+  }
+
   // 16. Sinov darsiga yozilish: POST /api/enroll
   if (req.method === 'POST' && pathname === '/api/enroll') {
     let body = '';
@@ -1005,6 +1079,9 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         let leads = loadJSON(LEADS_PATH);
         leads.push({ ...data, receivedAt: new Date().toISOString() });
         saveJSON(LEADS_PATH, leads, 'leads');
+
+        // O'quvchini guruhga AVTOMATIK qo'shish (ustoz qo'lda qo'shib o'tirmaydi)
+        const assignedGroup = autoAssignStudentToGroup(data);
 
         // n8n Webhook ga to'g'ridan-to'g'ri yuborish
         try {
@@ -1044,12 +1121,13 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         }
 
         // Bosh Adminga darhol Telegramdan bildirishnoma yuborish
+        const groupInfoLine = assignedGroup ? `\n👥 <b>Guruh:</b> ${assignedGroup.name} (Avtomatik qo'shildi ✅)` : '';
         const adminText = `
 🔔 <b>YANGI ARIZA KELDI! (Lid)</b> 🎓
 
 👤 <b>O'quvchi:</b> ${data.name || 'Noma\'lum'}
 📞 <b>Telefon:</b> ${data.phone || 'Ko\'rsatilmagan'}
-📚 <b>Kurs:</b> ${data.course || 'Umumiy'}
+📚 <b>Kurs:</b> ${data.course || 'Umumiy'}${groupInfoLine}
 ⏰ <b>Vaqti:</b> ${data.preferredTime || 'Moslashuvchan'}
 📅 <b>Vaqt:</b> ${new Date().toLocaleDateString('uz-UZ')} ${new Date().toLocaleTimeString('uz-UZ')}
 
@@ -1058,7 +1136,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         await notifyAdmin(adminText);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, message: 'Ariza muvaffaqiyatli qabul qilindi' }));
+        res.end(JSON.stringify({ success: true, assignedGroup: assignedGroup?.name || null, message: 'Ariza qabul qilindi va guruhga avtomatik qo\'shildi' }));
       } catch (err) {
         console.error('Enroll xatosi:', err);
         res.writeHead(400, { 'Content-Type': 'application/json' });
