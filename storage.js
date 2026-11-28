@@ -23,6 +23,19 @@ const STATE_FILES = {
 let lastCoursesSyncAt = 0;
 let lastSyncStatus = { ok: null, error: null, at: null, coursesCount: 0 };
 
+function normalizeChannelTarget(raw) {
+  let ch = String(raw || '').trim();
+  if (!ch) return '';
+  ch = ch
+    .replace(/^@?https?:\/\/(t\.me|telegram\.me)\//i, '')
+    .replace(/^@?(t\.me|telegram\.me)\//i, '')
+    .split(/[?#\s]/)[0]
+    .replace(/\/+$/, '');
+  if (!ch) return '';
+  if (/^-?\d+$/.test(ch)) return ch;
+  return ch.startsWith('@') ? ch : '@' + ch;
+}
+
 function getConfig() {
   let fileCfg = {};
   if (fs.existsSync(CONFIG_PATH)) {
@@ -35,7 +48,7 @@ function getConfig() {
     bot_username: (process.env.BOT_USERNAME || fileCfg.bot_username || 'eduwithn8n_bot').trim(),
     web_app_url: (process.env.WEB_APP_URL || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL : null) || fileCfg.web_app_url || '').trim(),
     admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || 5565743745),
-    channel_username: (process.env.CHANNEL_USERNAME || fileCfg.channel_username || '').trim(),
+    channel_username: normalizeChannelTarget(process.env.CHANNEL_USERNAME || fileCfg.channel_username || ''),
     google_sheet_url: (process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || DEFAULT_GOOGLE_SHEET_URL).trim()
   };
 }
@@ -246,5 +259,6 @@ module.exports = {
   pushStateToSheets,
   syncAllFromSheets,
   syncCoursesOnly,
-  getSyncStatus
+  getSyncStatus,
+  normalizeChannelTarget
 };

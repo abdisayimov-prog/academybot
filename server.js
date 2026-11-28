@@ -644,7 +644,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         let channelWarn = '';
         if (data.sendTelegram) {
           const cfg = getConfig();
-          const targetChannel = data.channelUsername || cfg.channel_username;
+          const targetChannel = storage.normalizeChannelTarget(data.channelUsername || cfg.channel_username);
           if (!targetChannel) {
             channelWarn = ' (Telegram kanal @username kiritilmagan — Auto-SMM bo\'limida kanalni saqlang)';
           } else {
@@ -814,10 +814,7 @@ Shoshiling, guruhda faqat 10 ta joy bor!
       try {
         const { postText, channelUsername } = JSON.parse(body);
         const cfg = getConfig();
-        let targetChannel = (channelUsername || cfg.channel_username || '').trim();
-        if (targetChannel && !targetChannel.startsWith('@') && !targetChannel.startsWith('-')) {
-          targetChannel = '@' + targetChannel;
-        }
+        const targetChannel = storage.normalizeChannelTarget(channelUsername || cfg.channel_username);
 
         if (!targetChannel) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -869,8 +866,7 @@ Shoshiling, guruhda faqat 10 ta joy bor!
     req.on('end', () => {
       try {
         const { channelUsername } = JSON.parse(body);
-        let ch = String(channelUsername || '').trim();
-        if (ch && !ch.startsWith('@') && !ch.startsWith('-')) ch = '@' + ch;
+        const ch = storage.normalizeChannelTarget(channelUsername);
         saveConfig({ channel_username: ch });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, channel_username: ch }));
