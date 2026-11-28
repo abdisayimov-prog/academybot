@@ -135,20 +135,17 @@
         <div class="relative z-10">
           <div class="flex items-center justify-between mb-2">
             <span class="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold uppercase tracking-wider">
-              🎁 MAXSUS TAKLIF
-            </span>
-            <span class="text-xs bg-black/25 px-2 py-0.5 rounded-full font-mono text-amber-300">
-              <i class="fa-regular fa-clock mr-1"></i>3 kun qoldi
+              🎓 QABUL OCHIQ
             </span>
           </div>
-          <h2 class="text-xl font-extrabold leading-tight mb-1.5">Birinchi Sinov Darsi — Mutlaqo Bepul!</h2>
+          <h2 class="text-xl font-extrabold leading-tight mb-1.5">Apex Academy — Bilim va Kelajak Maskani</h2>
           <p class="text-xs text-white/80 mb-4 leading-relaxed">
-            Ingliz tili yoki IT bo'yicha bilimingizni bepul tekshiring va professional ustozlardan saboq oling.
+            Ingliz tili, IT va matematika yo'nalishlarida zamonaviy kurslar hamda professional ustozlardan sifatli ta'lim oling.
           </p>
           <div class="flex gap-2">
-            <button onclick="openEnrollModal('Bosh sahifa - Sinov Darsi')" class="flex-1 py-2.5 bg-white text-indigo-700 font-bold rounded-xl text-xs shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
-              <i class="fa-solid fa-calendar-check text-indigo-600"></i>
-              <span>Sinov Darsiga Yozilish</span>
+            <button onclick="switchTab('courses')" class="flex-1 py-2.5 bg-white text-indigo-700 font-bold rounded-xl text-xs shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+              <i class="fa-solid fa-graduation-cap text-indigo-600"></i>
+              <span>Kurslarga Yozilish</span>
             </button>
             <button onclick="switchTab('ai')" class="px-3.5 py-2.5 bg-white/15 hover:bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold active:scale-95 transition-transform">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -711,7 +708,7 @@
                 <span class="text-[10px] text-slate-400 font-bold uppercase">Jami Lidlar</span>
               </div>
               <div id="repTotalLeads" class="text-lg font-black text-white">0 ta</div>
-              <div class="text-[10px] text-emerald-400">Sinov darsiga arizalar</div>
+              <div class="text-[10px] text-emerald-400">Kelib tushgan arizalar</div>
             </div>
 
             <div class="glass-card rounded-2xl p-3 border border-emerald-500/20">
@@ -799,7 +796,7 @@
           </div>
           <div class="bg-slate-800/90 border border-white/5 rounded-2xl rounded-tl-sm p-3 text-xs leading-relaxed text-slate-200">
             Assalomu alaykum! Men <strong>Apex Academy AI</strong> maslahatchisiman. 🎓<br><br>
-            Sizga kurslarimiz, narxlar yoki bepul sinov darsi haqida ma'lumot bera olaman. Sinov darsiga yozilish uchun telefon raqamingizni shu yerga yozib qoldirishingiz mumkin!
+            Sizga kurslarimiz, narxlar va dars vaqtlari haqida ma'lumot bera olaman. Kursga yozilish uchun ismingiz va telefon raqamingizni shu yerga yozib qoldirishingiz mumkin!
           </div>
         </div>
       </div>
@@ -847,13 +844,13 @@
     </div>
   </nav>
 
-  <!-- MODAL: SINOV DARSIGA YOZILISH -->
+  <!-- MODAL: KURSGA YOZILISH -->
   <div id="enrollModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden transition-opacity">
     <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 text-slate-100 shadow-2xl">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <h3 class="text-base font-extrabold text-white">Sinov Darsiga Yozilish</h3>
-          <p class="text-xs text-slate-400">Mutlaqo bepul, hech qanday to'lov talab etilmaydi</p>
+          <h3 class="text-base font-extrabold text-white">Kursga Yozilish</h3>
+          <p class="text-xs text-slate-400">Ma'lumotlaringizni kiriting va guruhga qo'shiling</p>
         </div>
         <button onclick="closeEnrollModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
           <i class="fa-solid fa-xmark"></i>
@@ -2081,7 +2078,7 @@
           <p class="text-xs text-slate-300 mb-3">${c.description || ""}</p>
           ${c.schedule ? `<div class="text-[11px] text-slate-400 mb-2.5 flex items-center gap-1.5"><i class="fa-regular fa-clock text-indigo-400"></i> ${c.schedule}</div>` : ''}
           <button onclick="openEnrollModal('${c.name}')" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-xs text-white shadow-md active:scale-95">
-            Sinov Darsiga Yozilish
+            Kursga Yozilish
           </button>
         `;
         container.appendChild(card);
@@ -2517,7 +2514,7 @@
 👤 <b>Ism:</b> ${studentName}<br>
 📞 <b>Telefon:</b> ${cleanPhone}<br>
 📚 <b>Tanlangan kurs:</b> ${chatUserPendingCourse}<br>
-📅 <b>Holat:</b> Bepul sinov darsi tasdiqlandi ✅<br><br>
+📅 <b>Holat:</b> Arizangiz tasdiqlandi ✅<br><br>
 Ma'lumotlaringiz markazimiz jadvaliga (Google Sheets) kiritildi. Tez orada administratorimiz qo'ng'iroq qilib, dars vaqtini ma'lum qiladi!
         `;
         appendChatMessage('ai', successReply);
