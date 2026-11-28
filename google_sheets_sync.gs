@@ -24,9 +24,9 @@ function getOrCreateSheet(ss, name, headers) {
 
 function categoryFromSubject(fan) {
   var lower = String(fan || "").toLowerCase();
-  if (lower.indexOf("ingliz") !== -1 || lower.indexOf("english") !== -1 || lower.indexOf("ielts") !== -1) return "english";
+  if (lower.indexOf("ingliz") !== -1 || lower.indexOf("engl") !== -1 || lower.indexOf("english") !== -1 || lower.indexOf("ielts") !== -1 || lower.indexOf("beginner") !== -1) return "english";
   if (lower.indexOf("it") !== -1 || lower.indexOf("dastur") !== -1 || lower.indexOf("front") !== -1 || lower.indexOf("python") !== -1) return "it";
-  if (lower.indexOf("matem") !== -1 || lower.indexOf("fizik") !== -1 || lower.indexOf("serfikat") !== -1) return "exact";
+  if (lower.indexOf("matem") !== -1 || lower.indexOf("fizik") !== -1 || lower.indexOf("serfikat") !== -1 || lower.indexOf("sertifikat") !== -1) return "exact";
   return "other";
 }
 

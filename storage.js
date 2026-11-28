@@ -23,6 +23,23 @@ const STATE_FILES = {
 let lastCoursesSyncAt = 0;
 let lastSyncStatus = { ok: null, error: null, at: null, coursesCount: 0 };
 
+function normalizeCourseCategory(c) {
+  const cat = String(c?.category || '').trim().toLowerCase();
+  if (cat === 'english' || cat === 'it' || cat === 'exact') return cat;
+  const hay = [c?.category, c?.badge, c?.name, c?.description].filter(Boolean).join(' ').toLowerCase();
+  if (/ingliz|engl|english|ielts|cefr|beginner|elementary|pre-inter|intermediate|general/.test(hay)) return 'english';
+  if (/\bit\b|dastur|front|back|python|react|web|java|kompyuter|smm|dizayn|cyber/.test(hay)) return 'it';
+  if (/matem|fizik|exact|hisob|serfikat|sertifikat|kimyo|biolog|dtm/.test(hay)) return 'exact';
+  return 'other';
+}
+
+function normalizeCourseList(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map(c => ({ ...c, category: normalizeCourseCategory(c) }))
+    .sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+}
+
 function normalizeChannelTarget(raw) {
   let ch = String(raw || '').trim();
   if (!ch) return '';
@@ -174,8 +191,9 @@ async function syncAllFromSheets(force = false) {
 
     // 1. Kurslar varag'idan kurslarni yangilash
     if (Array.isArray(data.courses)) {
+      const normalized = normalizeCourseList(data.courses);
       const coursesPath = path.join(__dirname, 'courses.json');
-      fs.writeFileSync(coursesPath, JSON.stringify(data.courses, null, 2), 'utf8');
+      fs.writeFileSync(coursesPath, JSON.stringify(normalized, null, 2), 'utf8');
     }
 
     // 2. Barcha qolgan holatlarni tiklash
@@ -233,9 +251,10 @@ async function syncCoursesOnly(force = false) {
     }
     const data = JSON.parse(text);
     if (data.success && Array.isArray(data.courses)) {
-      fs.writeFileSync(path.join(__dirname, 'courses.json'), JSON.stringify(data.courses, null, 2), 'utf8');
-      lastSyncStatus = { ok: true, error: null, isDefault: usedUrl === DEFAULT_GOOGLE_SHEET_URL, at: new Date().toISOString(), coursesCount: data.courses.length };
-      return data.courses;
+      const normalized = normalizeCourseList(data.courses);
+      fs.writeFileSync(path.join(__dirname, 'courses.json'), JSON.stringify(normalized, null, 2), 'utf8');
+      lastSyncStatus = { ok: true, error: null, isDefault: usedUrl === DEFAULT_GOOGLE_SHEET_URL, at: new Date().toISOString(), coursesCount: normalized.length };
+      return normalized;
     }
   } catch (e) {
     lastSyncStatus = { ok: false, error: e.message, at: new Date().toISOString(), coursesCount: 0 };
@@ -246,6 +265,10 @@ async function syncCoursesOnly(force = false) {
 
 function getSyncStatus() {
   return lastSyncStatus;
+}
+
+function markCoursesFresh() {
+  lastCoursesSyncAt = Date.now();
 }
 
 module.exports = {
@@ -260,5 +283,7 @@ module.exports = {
   syncAllFromSheets,
   syncCoursesOnly,
   getSyncStatus,
-  normalizeChannelTarget
+  markCoursesFresh,
+  normalizeChannelTarget,
+  normalizeCourseList
 };

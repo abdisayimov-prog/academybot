@@ -265,22 +265,27 @@
     <div id="tab-courses" class="tab-content hidden space-y-4">
       
       <div class="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
-        <button onclick="filterCourses('all')" class="course-filter active px-3.5 py-1.5 rounded-full text-xs font-bold bg-indigo-600 text-white whitespace-nowrap shadow-sm">
+        <button onclick="filterCourses('all', this)" data-filter="all" class="course-filter active px-3.5 py-1.5 rounded-full text-xs font-bold bg-indigo-600 text-white whitespace-nowrap shadow-sm">
           Barchasi
         </button>
-        <button onclick="filterCourses('english')" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
+        <button onclick="filterCourses('english', this)" data-filter="english" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
           🇬🇧 Ingliz tili
         </button>
-        <button onclick="filterCourses('it')" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
+        <button onclick="filterCourses('it', this)" data-filter="it" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
           💻 IT & Dasturlash
         </button>
-        <button onclick="filterCourses('exact')" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
+        <button onclick="filterCourses('exact', this)" data-filter="exact" class="course-filter px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 whitespace-nowrap border border-white/5">
           📐 Matematika
         </button>
       </div>
 
       <div id="coursesContainer" class="space-y-3.5">
         <!-- Dinamik ravishda /api/courses dan yuklanadi -->
+      </div>
+      <div id="coursesFilterEmpty" class="hidden glass-card rounded-2xl p-6 text-center text-slate-400">
+        <i class="fa-solid fa-folder-open text-2xl mb-2 text-slate-500 block"></i>
+        <div class="text-xs font-bold text-white mb-1">Bu yo'nalishda hozircha kurs mavjud emas</div>
+        <p class="text-[11px] text-slate-500">Boshqa yo'nalishni yoki "Barchasi" tugmasini tanlab ko'ring.</p>
       </div>
 
     </div>
@@ -646,8 +651,14 @@
                 <p class="text-[10px] text-slate-500 mt-1">Bot kanalda Administrator bo'lishi kerak (Auto-SMM va Mock e'lonlar shu yerga chiqadi).</p>
               </div>
               <div>
-                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Kurs nomi</label>
-                <input type="text" id="smmCourse" value="IELTS Intensive (7.5+ Kafolat)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Tayyor kursni tanlang (Eng yangisi yuqorida)</label>
+                <select id="smmCourseSelect" onchange="applySelectedCourseToSMM()" class="w-full bg-slate-900 border border-indigo-500/40 rounded-xl px-3 py-2 text-xs font-bold text-indigo-300 focus:outline-none focus:border-pink-500">
+                  <option value="">Kurslar yuklanmoqda...</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Kurs nomi (avtomatik to'ldiriladi)</label>
+                <input type="text" id="smmCourse" placeholder="Yuqoridan kurs tanlang yoki yozing" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <div>
@@ -656,9 +667,11 @@
                 </div>
                 <div>
                   <label class="block text-[11px] font-semibold text-slate-400 mb-1">Dars Vaqti</label>
-                  <input type="text" id="smmTime" value="18:30 - 20:30 (Dush-Chor-Jum)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                  <input type="text" id="smmTime" placeholder="Dars kunlari va vaqti" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                 </div>
               </div>
+              <input type="hidden" id="smmPrice" value="">
+              <input type="hidden" id="smmDesc" value="">
               <div>
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">Maxsus Chegirma / Taklif</label>
                 <input type="text" id="smmDiscount" value="Dastlabki 5 ta o'quvchiga 15% chegirma + Bepul darslik" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
@@ -1243,25 +1256,52 @@
       }
     }
 
+    let currentCourseFilter = 'all';
+
+    function inferCourseCategory(c) {
+      const cat = String(c?.category || '').trim().toLowerCase();
+      if (cat === 'english' || cat === 'it' || cat === 'exact') return cat;
+      const hay = [c?.category, c?.badge, c?.name, c?.description].filter(Boolean).join(' ').toLowerCase();
+      if (/ingliz|engl|english|ielts|cefr|beginner|elementary|pre-inter|intermediate|general/.test(hay)) return 'english';
+      if (/\bit\b|dastur|front|back|python|react|web|java|kompyuter|smm|dizayn|cyber/.test(hay)) return 'it';
+      if (/matem|fizik|exact|hisob|serfikat|sertifikat|kimyo|biolog|dtm/.test(hay)) return 'exact';
+      return 'other';
+    }
+
     // Filter Courses
-    function filterCourses(category) {
-      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    function filterCourses(category, btnEl) {
+      if (btnEl && tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+      currentCourseFilter = category || 'all';
 
       document.querySelectorAll('.course-filter').forEach(btn => {
         btn.classList.remove('bg-indigo-600', 'text-white');
         btn.classList.add('bg-slate-800/80', 'text-slate-300');
       });
-      event.currentTarget.classList.remove('bg-slate-800/80', 'text-slate-300');
-      event.currentTarget.classList.add('bg-indigo-600', 'text-white');
+      const activeBtn = btnEl || document.querySelector(`.course-filter[data-filter="${currentCourseFilter}"]`);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-slate-800/80', 'text-slate-300');
+        activeBtn.classList.add('bg-indigo-600', 'text-white');
+      }
 
       const items = document.querySelectorAll('.course-item');
+      let visibleCount = 0;
       items.forEach(item => {
-        if (category === 'all' || item.dataset.category === category) {
+        if (currentCourseFilter === 'all' || item.dataset.category === currentCourseFilter) {
           item.classList.remove('hidden');
+          visibleCount++;
         } else {
           item.classList.add('hidden');
         }
       });
+
+      const emptyBox = document.getElementById('coursesFilterEmpty');
+      if (emptyBox) {
+        if (allCoursesData.length > 0 && visibleCount === 0) {
+          emptyBox.classList.remove('hidden');
+        } else {
+          emptyBox.classList.add('hidden');
+        }
+      }
     }
 
     // Switch Role in Cabinet
@@ -1330,6 +1370,7 @@
         btnSMM.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
         viewSMM.classList.remove('hidden');
         loadChannelSetting();
+        renderSmmCourseOptions(true);
       } else if (tab === 'director') {
         btnDirector.className = 'py-2 rounded-xl font-bold bg-indigo-600 text-white shadow-sm';
         viewDirector.classList.remove('hidden');
@@ -1969,14 +2010,19 @@
     // --- DINAMIK KURSLAR BOSHQARUVI ---
     let allCoursesData = [];
 
-    async function fetchCourses() {
+    async function fetchCourses(selectNewestInSmm = false) {
       try {
         const res = await fetch('/api/courses');
         const data = await res.json();
-        allCoursesData = data.courses || [];
+        allCoursesData = (data.courses || []).map(c => ({
+          ...c,
+          category: inferCourseCategory(c)
+        }));
 
         renderPublicCourses(allCoursesData);
         renderAdminCourses(allCoursesData);
+        renderSmmCourseOptions(selectNewestInSmm);
+        filterCourses(currentCourseFilter);
       } catch (e) {
         console.error('Kurslarni yuklashda xatolik:', e);
       }
@@ -2112,9 +2158,9 @@
         });
         const data = await res.json();
         if (data.success) {
-          alert(`✅ Yangi kurs e'lon qilindi: ${payload.name}!`);
+          alert(`✅ Yangi kurs e'lon qilindi: ${payload.name}!\n\nEndi Auto-SMM bo'limida ushbu kurs birinchida tayyor turibdi — 1 bosish bilan kanalga chiqarishingiz mumkin.`);
           document.getElementById('addCourseForm').reset();
-          fetchCourses();
+          fetchCourses(true);
         } else {
           alert('Xatolik: ' + data.message);
         }
@@ -2143,6 +2189,50 @@
       }
     }
 
+    function renderSmmCourseOptions(selectNewest = false) {
+      const select = document.getElementById('smmCourseSelect');
+      if (!select) return;
+
+      if (!allCoursesData || allCoursesData.length === 0) {
+        select.innerHTML = '<option value="">Hozircha kurslar yo\'q (Avval kurs qo\'shing)</option>';
+        return;
+      }
+
+      const prevValue = selectNewest ? '' : select.value;
+      select.innerHTML = '';
+      allCoursesData.forEach((c, idx) => {
+        const opt = document.createElement('option');
+        opt.value = String(c.id);
+        const tag = idx === 0 ? '🆕 ' : '';
+        opt.textContent = `${tag}${c.name}${c.price ? ' (' + c.price + ')' : ''}`;
+        select.appendChild(opt);
+      });
+
+      if (prevValue && allCoursesData.some(c => String(c.id) === prevValue)) {
+        select.value = prevValue;
+      } else {
+        select.value = String(allCoursesData[0].id);
+      }
+      applySelectedCourseToSMM();
+    }
+
+    function applySelectedCourseToSMM() {
+      const select = document.getElementById('smmCourseSelect');
+      if (!select || !select.value) return;
+      const chosen = allCoursesData.find(c => String(c.id) === select.value);
+      if (!chosen) return;
+
+      const courseInput = document.getElementById('smmCourse');
+      const timeInput = document.getElementById('smmTime');
+      const priceInput = document.getElementById('smmPrice');
+      const descInput = document.getElementById('smmDesc');
+
+      if (courseInput) courseInput.value = chosen.name || '';
+      if (timeInput) timeInput.value = chosen.schedule || '';
+      if (priceInput) priceInput.value = chosen.price || '';
+      if (descInput) descInput.value = chosen.description || '';
+    }
+
     // --- AUTO-SMM (Masterplan 8-band) ---
     let currentSmmPostText = '';
     async function handleGenerateSMM() {
@@ -2158,6 +2248,8 @@
             course: document.getElementById('smmCourse').value,
             teacher: document.getElementById('smmTeacher').value,
             time: document.getElementById('smmTime').value,
+            price: document.getElementById('smmPrice')?.value || '',
+            description: document.getElementById('smmDesc')?.value || '',
             discount: document.getElementById('smmDiscount').value
           })
         });

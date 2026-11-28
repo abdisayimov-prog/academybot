@@ -718,7 +718,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
   // 12.2 Kurslar ro'yxati (Google Sheets bilan sinxronlangan): GET /api/courses
   if (req.method === 'GET' && pathname === '/api/courses') {
     await storage.syncCoursesOnly(parsedUrl.query.refresh === '1');
-    const courses = loadJSON(COURSES_PATH) || [];
+    const courses = storage.normalizeCourseList(loadJSON(COURSES_PATH) || []);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, courses }));
     return;
@@ -728,15 +728,17 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
   if (req.method === 'POST' && pathname === '/api/courses/add') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const newCourse = JSON.parse(body);
         let courses = loadJSON(COURSES_PATH) || [];
         newCourse.id = Date.now();
         newCourse.createdAt = new Date().toISOString();
-        courses.push(newCourse);
-        saveJSON(COURSES_PATH, courses);
-        storage.pushToSheets({ action: 'sync_course_add', course: newCourse });
+        courses.unshift(newCourse);
+        const normalized = storage.normalizeCourseList(courses);
+        saveJSON(COURSES_PATH, normalized);
+        storage.markCoursesFresh();
+        await storage.pushToSheets({ action: 'sync_course_add', course: newCourse });
         console.log(`📚 Yangi kurs qo'shildi: ${newCourse.name}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, course: newCourse }));
@@ -752,14 +754,15 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
   if (req.method === 'POST' && pathname === '/api/courses/delete') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { id } = JSON.parse(body);
         let courses = loadJSON(COURSES_PATH) || [];
         const removed = courses.find(c => c.id == id);
         courses = courses.filter(c => c.id != id);
         saveJSON(COURSES_PATH, courses);
-        storage.pushToSheets({ action: 'sync_course_delete', id, name: removed?.name || '' });
+        storage.markCoursesFresh();
+        await storage.pushToSheets({ action: 'sync_course_delete', id, name: removed?.name || '' });
         console.log(`🗑 Kurs o'chirildi (ID: ${id})`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -777,24 +780,24 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
     req.on('data', chunk => body += chunk.toString());
     req.on('end', () => {
       try {
-        const { topic, course, teacher, days, time, discount } = JSON.parse(body);
-        
+        const { course, teacher, days, time, price, discount, description } = JSON.parse(body);
+
         // Jozibali marketing post shabloni
-        const marketingPost = `
-🔥 <b>DIQQAT, YANGI GURUH OCHILMOQDA!</b> 🚀
+        const lines = [
+          `🔥 <b>DIQQAT, YANGI GURUH OCHILMOQDA!</b> 🚀\n`,
+          `<b>Apex Academy</b>da <b>${course || "O'quv kursi"}</b> bo'yicha qabul boshlandi!\n`
+        ];
+        if (description) lines.push(`📌 ${description}`);
+        lines.push(`👨‍🏫 <b>Ustoz:</b> ${teacher || 'Malakali ustoz'}`);
+        if (days) lines.push(`📅 <b>Dars kunlari:</b> ${days}`);
+        if (time) lines.push(`⏰ <b>Vaqti:</b> ${time}`);
+        if (price) lines.push(`💰 <b>Oylik to'lov:</b> ${price}`);
+        if (discount) lines.push(`🎁 <b>Maxsus taklif:</b> ${discount}`);
+        lines.push(`\n📍 <b>Manzil:</b> Qarshi shahri | 📞 +998 95 901 14 45`);
+        lines.push(`⚡ <i>Birinchi sinov darsi — MUTLAQO BEPUL!</i>\n`);
+        lines.push(`👉 Bepul joy band qilish uchun quyidagi tugmani bosing:`);
 
-<b>Apex Academy</b>da yangi <b>${course || 'IELTS Intensive'}</b> guruhi uchun qabul boshlandi!
-
-👨‍🏫 <b>Ustoz:</b> ${teacher || 'Malakali ustoz'}
-📅 <b>Dars kunlari:</b> ${days || 'Dushanba, Chorshanba, Juma'}
-⏰ <b>Vaqti:</b> ${time || '18:30 - 20:30'}
-🎁 <b>Maxsus taklif:</b> ${discount || 'Dastlabki 5 ta o\'quvchiga 15% chegirma!'}
-
-⚡ <i>Birinchi sinov darsi — MUTLAQO BEPUL!</i>
-Shoshiling, guruhda faqat 10 ta joy bor!
-
-👉 Bepul joy band qilish uchun quyidagi tugmani bosing:
-        `;
+        const marketingPost = lines.join('\n');
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, postText: marketingPost.trim() }));
