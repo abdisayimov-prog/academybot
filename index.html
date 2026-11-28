@@ -767,6 +767,21 @@
               </button>
             </div>
           </div>
+
+          <!-- To'lov Cheklarini Tekshirish (Admin Moliya Nazorati) -->
+          <div class="glass-card rounded-2xl p-4 border border-emerald-500/20">
+            <div class="flex items-center justify-between mb-2.5">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-receipt text-emerald-400"></i> To'lov Cheklari
+              </h4>
+              <button onclick="fetchAdminReceipts()" class="text-xs text-emerald-400 hover:text-emerald-300">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+            <div id="adminReceiptsList" class="space-y-2.5">
+              <div class="text-xs text-slate-400 text-center py-2">Yuklanmoqda...</div>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -904,8 +919,8 @@
         <i class="fa-solid fa-check"></i>
       </div>
       <h3 class="text-lg font-black text-white mb-1.5">Arizangiz Qabul Qilindi!</h3>
-      <p class="text-xs text-slate-300 mb-5 leading-relaxed">
-        Ma'lumotlaringiz Google Sheets jadvaliga muvaffaqiyatli saqlandi. Tez orada siz bilan operatorimiz bog'lanadi.
+      <p id="successMessage" class="text-xs text-slate-300 mb-5 leading-relaxed">
+        Ma'lumotlaringiz bazaga saqlandi va mos guruhga biriktirildingiz. Tez orada siz bilan bog'lanamiz.
       </p>
       <button onclick="closeSuccessModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-xl border border-white/10 active:scale-95">
         Tushundim
@@ -2353,6 +2368,7 @@
 
     // --- DIREKTOR OYLIK HISOBOTI (Masterplan 7-band) ---
     async function fetchDirectorReport() {
+      fetchAdminReceipts();
       try {
         const res = await fetch('/api/director/report');
         const data = await res.json();
@@ -2415,6 +2431,68 @@
       }
     }
 
+    async function fetchAdminReceipts() {
+      const box = document.getElementById('adminReceiptsList');
+      if (!box) return;
+      try {
+        const res = await fetch('/api/receipts');
+        const data = await res.json();
+        const list = data.receipts || [];
+        if (list.length === 0) {
+          box.innerHTML = '<div class="text-xs text-slate-400 text-center py-2">Hozircha yuklangan to\'lov cheklari yo\'q.</div>';
+          return;
+        }
+        box.innerHTML = '';
+        list.slice(0, 10).forEach(r => {
+          const isPending = r.status === 'Kutilmoqda';
+          const badgeClass = r.status === 'Tasdiqlandi'
+            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+            : (r.status === 'Rad etildi' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30');
+          const el = document.createElement('div');
+          el.className = 'p-3 rounded-xl bg-slate-900/70 border border-white/10 space-y-2';
+          el.innerHTML = `
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-xs font-bold text-white">${r.studentName} <span class="text-slate-400 font-normal">(#${r.receiptId})</span></div>
+                <div class="text-[11px] text-slate-400">${r.course} • <span class="text-emerald-300 font-semibold">${r.amount}</span></div>
+                ${r.studentPhone ? `<div class="text-[10px] text-slate-500">${r.studentPhone}</div>` : ''}
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeClass}">${r.status}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              ${r.imageUrl ? `<a href="${r.imageUrl}" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-sky-300"><i class="fa-regular fa-image mr-1"></i>Chek rasmi</a>` : ''}
+              ${isPending ? `
+                <button onclick="decideReceipt('${r.receiptId}', 'approve')" class="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] active:scale-95">Tasdiqlash ✅</button>
+                <button onclick="decideReceipt('${r.receiptId}', 'reject')" class="flex-1 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white font-bold text-[11px] active:scale-95">Rad etish ❌</button>
+              ` : ''}
+            </div>
+          `;
+          box.appendChild(el);
+        });
+      } catch (e) {
+        box.innerHTML = '<div class="text-xs text-rose-400 text-center py-2">Cheklarni yuklashda xatolik</div>';
+      }
+    }
+
+    async function decideReceipt(receiptId, decision) {
+      try {
+        const res = await fetch('/api/receipts/decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ receiptId, decision, adminName: currentTeacherData?.name || 'Admin' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          fetchAdminReceipts();
+          fetchDirectorReport();
+        } else {
+          alert(`❌ Xatolik: ${data.error || 'Bajarib bo\'lmadi'}`);
+        }
+      } catch (e) {
+        alert('Server bilan bog\'lanishda xatolik');
+      }
+    }
+
     function handlePayment(provider) {
       openReceiptModal(provider);
     }
@@ -2444,39 +2522,52 @@
       if (scr) scr.classList.add('hidden');
     }
 
-    // Send data directly to n8n Webhook & Server Enroll
-    function handleEnroll(e) {
+    // Send data directly to Server Enroll (+ n8n & Google Sheets + Auto-Group)
+    async function handleEnroll(e) {
       if (e) e.preventDefault();
       const course = (document.getElementById('selectedCourse') || document.getElementById('modalCourseName'))?.value || '';
       const name = (document.getElementById('userName') || document.getElementById('modalUserName'))?.value || '';
       const phone = (document.getElementById('userPhone') || document.getElementById('modalUserPhone'))?.value || '';
       const preferredTime = document.getElementById('modalPreferredTime')?.value || 'Kechki (18:30 - 20:30)';
+      const chatId = tg?.initDataUnsafe?.user?.id || null;
 
       if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
-      // Send data directly to n8n Webhook
+      const btn = document.getElementById('modalSubmitBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Yuborilmoqda...';
+      }
+
+      let assignedGroup = null;
       try {
-        fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ course, name, phone, preferredTime, date: new Date().toLocaleDateString('uz-UZ') })
-        });
         if (tg) {
-          try { tg.sendData(JSON.stringify({ course, name, phone, date: new Date().toLocaleDateString('uz-UZ') })); } catch(e){}
+          try { tg.sendData(JSON.stringify({ course, name, phone, date: new Date().toLocaleDateString('uz-UZ') })); } catch (ex) {}
         }
-        // Ichki serverimizga saqlash + avtomatik guruhga qo'shish
-        fetch('/api/enroll', {
+        const res = await fetch('/api/enroll', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'enrollment', course, name, phone, preferredTime, date: new Date().toISOString() })
-        }).then(() => {
-          if (currentUserRole === 'teacher') fetchTeacherGroups();
-        }).catch(err => console.log('API save err:', err));
+          body: JSON.stringify({ action: 'enrollment', course, name, phone, preferredTime, chatId, source: 'webapp', date: new Date().toISOString() })
+        });
+        const data = await res.json();
+        assignedGroup = data.assignedGroup || null;
+        if (currentUserRole === 'teacher') fetchTeacherGroups();
       } catch (err) {
-        console.log(err);
+        console.log('API save err:', err);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Ariza Qoldirish</span> <i class="fa-solid fa-check"></i>';
+        }
       }
 
       closeModal();
+      const msgEl = document.getElementById('successMessage');
+      if (msgEl) {
+        msgEl.textContent = assignedGroup
+          ? `Tabriklaymiz! Siz "${assignedGroup}" guruhiga avtomatik qo'shildingiz. Tez orada ustoz yoki administrator bog'lanadi.`
+          : "Ma'lumotlaringiz saqlandi. Tez orada siz bilan bog'lanamiz.";
+      }
       const successEl = document.getElementById('successScreen') || document.getElementById('successModal');
       if (successEl) successEl.classList.remove('hidden');
     }

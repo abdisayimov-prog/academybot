@@ -240,7 +240,7 @@ function findUnpaidStudentsThisMonth() {
 
   const approvedThisMonth = receipts.filter(r => {
     if (r.status !== 'Tasdiqlandi') return false;
-    const stamp = String(r.approvedAt || r.submittedAt || r.date || '');
+    const stamp = String(r.approvedAt || r.createdAt || r.submittedAt || r.date || '');
     return stamp.startsWith(yearMonth);
   });
 
@@ -730,6 +730,79 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 10.1 To'lov cheklari ro'yxati (Admin Panel): GET /api/receipts
+  if (req.method === 'GET' && pathname === '/api/receipts') {
+    const receipts = loadJSON(path.join(__dirname, 'receipts.json'), []);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, receipts: [...receipts].reverse() }));
+    return;
+  }
+
+  // 10.2 To'lov chekini Mini App orqali tasdiqlash / rad etish: POST /api/receipts/decision
+  if (req.method === 'POST' && pathname === '/api/receipts/decision') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { receiptId, decision, adminName } = JSON.parse(body);
+        const receiptsFile = path.join(__dirname, 'receipts.json');
+        const receipts = loadJSON(receiptsFile, []);
+        const receipt = receipts.find(r => r.receiptId === receiptId);
+        if (!receipt) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Chek topilmadi' }));
+          return;
+        }
+
+        const isApproved = decision === 'approve';
+        receipt.status = isApproved ? 'Tasdiqlandi' : 'Rad etildi';
+        if (isApproved) {
+          receipt.approvedBy = adminName || 'Admin';
+          receipt.approvedAt = new Date().toISOString();
+        } else {
+          receipt.rejectedBy = adminName || 'Admin';
+          receipt.rejectedAt = new Date().toISOString();
+        }
+        saveJSON(receiptsFile, receipts, 'receipts');
+
+        const targetChatId = receipt.chatId || findStudentChatId(receipt.studentPhone);
+        if (targetChatId) {
+          const msg = isApproved
+            ? `✅ <b>To'lov chekingiz tasdiqlandi!</b>\n\nHurmatli <b>${receipt.studentName}</b>!\n<b>${receipt.amount}</b> (${receipt.course}) bo'yicha to'lovingiz tasdiqlandi.\n🏷 <b>Kvitansiya:</b> #${receipt.receiptId}\n\n<i>— Apex Academy</i>`
+            : `❌ <b>To'lov cheki rad etildi</b>\n\nHurmatli <b>${receipt.studentName}</b>, #${receipt.receiptId} raqamli to'lov chekingiz tasdiqlanmadi. Iltimos, skrinshotni qaytadan yuklang yoki ma'muriyat bilan bog'laning (+998 95 901 14 45).`;
+          await sendTelegramMessage(targetChatId, msg);
+        }
+
+        if (isApproved) {
+          const sheetUrl = getConfig().google_sheet_url;
+          if (sheetUrl) {
+            fetch(sheetUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'payment_confirm',
+                receiptId: receipt.receiptId,
+                name: receipt.studentName,
+                phone: receipt.studentPhone,
+                course: receipt.course,
+                amount: receipt.amount,
+                status: 'To\'landi',
+                date: new Date().toISOString()
+              })
+            }).catch(() => {});
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, receipt }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: e.message }));
       }
     });
     return;
