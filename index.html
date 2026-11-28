@@ -755,8 +755,16 @@
                 <i class="fa-solid fa-rotate-right"></i>
               </button>
             </div>
-            <div id="repAiSummary" class="text-xs text-slate-300 leading-relaxed whitespace-pre-line">
+            <div id="repAiSummary" class="text-xs text-slate-300 leading-relaxed whitespace-pre-line mb-3">
               Yuklanmoqda...
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+              <button onclick="sendDirectorReportToTelegram()" id="btnSendDirectorTg" class="py-2 px-2.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white font-bold text-[11px] active:scale-95 flex items-center justify-center gap-1.5">
+                <i class="fa-brands fa-telegram"></i> Hisobotni Yuborish
+              </button>
+              <button onclick="sendPaymentRemindersNow()" id="btnSendPaymentRem" class="py-2 px-2.5 rounded-xl bg-amber-600/80 hover:bg-amber-600 text-white font-bold text-[11px] active:scale-95 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-bell"></i> To'lov Eslatmasi
+              </button>
             </div>
           </div>
         </div>
@@ -1126,6 +1134,16 @@
     const paramRole = urlParams.get('role');
     const paramPhone = urlParams.get('phone');
     const paramName = urlParams.get('name');
+    const paramAction = (urlParams.get('action') || '').trim().toLowerCase();
+
+    function applyDeepLinkAction() {
+      if (paramAction === 'mock') {
+        switchTab('home');
+        openMockRegisterModal();
+      } else if (paramAction === 'enroll') {
+        switchTab('courses');
+      }
+    }
 
     // Telegram WebApp Init
     if (tg) {
@@ -1163,17 +1181,16 @@
         const data = await res.json();
         if (data.isTeacher) {
           setupTeacherRole(data.teacher, data.isAdmin);
-          fetchCourses();
-          fetchMockSlots();
+          await Promise.allSettled([fetchCourses(), fetchMockSlots()]);
+          applyDeepLinkAction();
           return;
         }
       } catch (e) {}
 
       // Agar o'quvchi bo'lsa
       setupStudentRole();
-      fetchCourses();
-      fetchMockSlots();
-      fetchStudentProfile();
+      await Promise.allSettled([fetchCourses(), fetchMockSlots(), fetchStudentProfile()]);
+      applyDeepLinkAction();
     });
 
     function setupTeacherRole(teacher, isAdmin) {
@@ -2348,6 +2365,54 @@
           document.getElementById('repAiSummary').innerHTML = r.aiSummary;
         }
       } catch (e) {}
+    }
+
+    async function sendDirectorReportToTelegram() {
+      const btn = document.getElementById('btnSendDirectorTg');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Yuborilmoqda...';
+      }
+      try {
+        const res = await fetch('/api/director/send-telegram', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ Oylik hisobot Direktor Telegramiga yuborildi!');
+        } else {
+          alert(`❌ Xatolik: ${data.error || 'Yuborib bo\'lmadi'}`);
+        }
+      } catch (e) {
+        alert('Server bilan bog\'lanishda xatolik');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-brands fa-telegram"></i> Hisobotni Yuborish';
+        }
+      }
+    }
+
+    async function sendPaymentRemindersNow() {
+      const btn = document.getElementById('btnSendPaymentRem');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Tekshirilmoqda...';
+      }
+      try {
+        const res = await fetch('/api/admin/send-payment-reminders', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ To'lov eslatmalari yakunlandi (${data.yearMonth}):\n\n• To'lanmagan o'quvchilar: ${data.totalUnpaid} ta\n• Telegram xabar yuborildi: ${data.sentCount} ta\n• Botga kirmagan (chatId yo'q): ${data.skippedNoChatId} ta`);
+        } else {
+          alert(`❌ Xatolik: ${data.error || 'Yuborib bo\'lmadi'}`);
+        }
+      } catch (e) {
+        alert('Server bilan bog\'lanishda xatolik');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-bell"></i> To\'lov Eslatmasi';
+        }
+      }
     }
 
     function handlePayment(provider) {

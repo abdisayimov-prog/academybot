@@ -163,6 +163,205 @@ function notifyAdminPhoto(imageBuffer, caption, replyMarkup = null) {
   return Promise.resolve(null);
 }
 
+/**
+ * Toshkent vaqti (UTC+5) bo'yicha joriy sana komponentlarini qaytaradi.
+ */
+function getTashkentNow() {
+  const now = new Date(Date.now() + 5 * 60 * 60 * 1000);
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const dayNum = now.getUTCDate();
+  const day = String(dayNum).padStart(2, '0');
+  return { year, month, dayNum, yearMonth: `${year}-${month}`, todayStr: `${year}-${month}-${day}` };
+}
+
+/**
+ * O'quvchining telefon raqami bo'yicha users.json dan Telegram chatId ni topadi.
+ */
+function findStudentChatId(phone, usersMap = null) {
+  const target = cleanPhone(phone);
+  if (!target) return null;
+  const users = usersMap || loadJSON(path.join(__dirname, 'users.json'), {});
+  for (const p in users) {
+    const up = cleanPhone(p);
+    if (up && (up === target || up.endsWith(target) || target.endsWith(up))) {
+      return users[p]?.chatId || null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Direktor uchun haqiqiy oylik hisobot obyektini yig'adi.
+ */
+function buildDirectorReportData() {
+  const leads = loadJSON(LEADS_PATH) || [];
+  const groups = loadJSON(GROUPS_PATH) || [];
+  const mock = loadJSON(MOCK_PATH) || [];
+  const receipts = loadJSON(path.join(__dirname, 'receipts.json')) || [];
+
+  const approvedReceipts = receipts.filter(r => r.status === 'Tasdiqlandi');
+  let totalRevenue = 0;
+  approvedReceipts.forEach(r => {
+    const amt = parseInt(String(r.amount).replace(/\D/g, ''), 10);
+    if (!isNaN(amt)) totalRevenue += amt;
+  });
+
+  const hasData = (leads.length > 0 || groups.length > 0 || approvedReceipts.length > 0 || mock.length > 0);
+  const summaryText = !hasData
+    ? `📊 <b>O'quv Markazi Boshqaruv Hisoboti:</b>\nHozircha tizimda faol o'zgarishlar mavjud emas. Yangi arizalar kelib tushganda yoki guruhlar ochilganda haqiqiy ko'rsatkichlar shu yerda aks etadi.`
+    : `
+📊 <b>O'quv Markazi Haqiqiy Ko'rsatkichlari:</b>
+1. <b>Arizalar (Lidlar):</b> Jami ${leads.length} ta ariza qabul qilindi.
+2. <b>Moliya:</b> ${approvedReceipts.length} ta to'lov tasdiqlandi (Jami tushum: ${totalRevenue.toLocaleString('uz-UZ')} so'm).
+3. <b>Faol Guruhlar:</b> ${groups.length} ta guruh shakllantirildi.
+4. <b>Mock Imtihonlar:</b> ${mock.length} ta nomzod ro'yxatdan o'tdi.
+    `.trim();
+
+  return {
+    period: 'Joriy oy',
+    totalLeads: leads.length,
+    activeGroups: groups.length,
+    mockAttendees: mock.length,
+    paidStudents: approvedReceipts.length,
+    estimatedRevenue: `${totalRevenue.toLocaleString('uz-UZ')} so'm`,
+    aiSummary: summaryText
+  };
+}
+
+/**
+ * Joriy oyda tasdiqlangan to'lov cheki yo'q guruh o'quvchilarini topadi.
+ */
+function findUnpaidStudentsThisMonth() {
+  const { yearMonth } = getTashkentNow();
+  const groups = loadJSON(GROUPS_PATH) || [];
+  const receipts = loadJSON(path.join(__dirname, 'receipts.json')) || [];
+  const users = loadJSON(path.join(__dirname, 'users.json'), {});
+
+  const approvedThisMonth = receipts.filter(r => {
+    if (r.status !== 'Tasdiqlandi') return false;
+    const stamp = String(r.approvedAt || r.submittedAt || r.date || '');
+    return stamp.startsWith(yearMonth);
+  });
+
+  const seen = new Set();
+  const unpaidStudents = [];
+  let totalStudents = 0;
+
+  groups.forEach(g => {
+    (g.students || []).forEach(s => {
+      const sp = cleanPhone(s.phone);
+      const key = sp || String(s.name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      totalStudents++;
+
+      const hasPaid = approvedThisMonth.some(r => {
+        const rp = cleanPhone(r.studentPhone);
+        if (sp && rp) return rp === sp || rp.endsWith(sp) || sp.endsWith(rp);
+        return String(r.studentName || '').trim().toLowerCase() === String(s.name || '').trim().toLowerCase();
+      });
+
+      if (!hasPaid) {
+        const chatId = s.chatId || findStudentChatId(s.phone, users);
+        unpaidStudents.push({
+          name: s.name || "O'quvchi",
+          phone: s.phone || '',
+          groupName: g.name || g.course || 'Guruh',
+          course: g.course || g.name || 'Kurs',
+          chatId
+        });
+      }
+    });
+  });
+
+  return { yearMonth, totalStudents, unpaidStudents };
+}
+
+/**
+ * To'lov qilmagan o'quvchilarga Telegram orqali eslatma yuboradi.
+ */
+async function sendPaymentReminders(force = false) {
+  const cfg = getConfig();
+  const { todayStr, dayNum, yearMonth } = getTashkentNow();
+  const reminderDays = [1, 5, 10];
+  if (!force && (!reminderDays.includes(dayNum) || cfg.last_payment_reminder_date === todayStr)) {
+    return { skipped: true, reason: 'not-scheduled-today', yearMonth };
+  }
+
+  const { totalStudents, unpaidStudents } = findUnpaidStudentsThisMonth();
+  let sentCount = 0;
+  let skippedNoChatId = 0;
+
+  for (const st of unpaidStudents) {
+    if (!st.chatId) {
+      skippedNoChatId++;
+      continue;
+    }
+    const msg = `
+💳 <b>Oylik to'lov eslatmasi</b>
+
+Assalomu alaykum, hurmatli <b>${st.name}</b>!
+<b>${st.groupName}</b> guruhi bo'yicha <b>${yearMonth}</b> oyi uchun to'lov hali tasdiqlanmagan.
+
+To'lovni amalga oshirgach, chek rasmini <b>Apex Ilova</b> → <i>Kabinet</i> bo'limidan yuborishingizni so'raymiz.
+📞 <b>Ma'muriyat:</b> +998 95 901 14 45
+<i>— Apex Academy</i>
+    `.trim();
+
+    const replyMarkup = cfg.web_app_url
+      ? { inline_keyboard: [[{ text: '💳 Chekni Yuklash (Apex Ilova)', web_app: { url: `${cfg.web_app_url}?role=student&phone=${encodeURIComponent(st.phone)}&name=${encodeURIComponent(st.name)}` } }]] }
+      : null;
+
+    const tgRes = await sendTelegramMessage(st.chatId, msg, replyMarkup);
+    if (tgRes && tgRes.ok) sentCount++;
+  }
+
+  saveConfig({ last_payment_reminder_date: todayStr });
+  return { skipped: false, yearMonth, totalStudents, totalUnpaid: unpaidStudents.length, sentCount, skippedNoChatId };
+}
+
+/**
+ * Direktor Telegramiga oylik hisobotni yuboradi (oyning 1-kuni yoki qo'lda bosilganda).
+ */
+async function sendDirectorMonthlyReport(force = false) {
+  const cfg = getConfig();
+  const { dayNum, yearMonth } = getTashkentNow();
+  if (!force && (dayNum !== 1 || cfg.last_director_report_month === yearMonth)) {
+    return { skipped: true, reason: 'not-scheduled-today', yearMonth };
+  }
+
+  const report = buildDirectorReportData();
+  const msg = `
+🏛 <b>DIREKTOR UCHUN OYLIK HISOBOT (${yearMonth})</b>
+
+${report.aiSummary}
+
+<i>Hisobot avtomatik ravishda Apex Academy tizimi tomonidan shakllantirildi.</i>
+  `.trim();
+
+  const tgRes = await notifyAdmin(msg);
+  if (tgRes && tgRes.ok) {
+    saveConfig({ last_director_report_month: yearMonth });
+    return { skipped: false, sent: true, yearMonth, report };
+  }
+  return { skipped: false, sent: false, yearMonth, error: tgRes?.description || 'Admin chatId biriktirilmagan (/setadmin)', report };
+}
+
+let scheduledJobRunning = false;
+async function runScheduledJobs() {
+  if (scheduledJobRunning) return;
+  scheduledJobRunning = true;
+  try {
+    await sendDirectorMonthlyReport(false);
+    await sendPaymentReminders(false);
+  } catch (e) {
+    console.error('Cron job xatosi:', e.message);
+  } finally {
+    scheduledJobRunning = false;
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
@@ -831,7 +1030,7 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
 
         const replyMarkup = {
           inline_keyboard: [
-            [{ text: '✍️ Kursga Bepul Yozilish', url: `https://t.me/${cfg.bot_username || 'eduwithn8n_bot'}?start=enroll` }]
+            [{ text: '✍️ Kursga Yozilish', url: `https://t.me/${cfg.bot_username || 'eduwithn8n_bot'}?start=enroll` }]
           ]
         };
 
@@ -952,49 +1151,40 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
 
   // 15. Direktor uchun Haqiqiy Oylik Hisobot (Masterplan 7-band): GET /api/director/report
   if (req.method === 'GET' && pathname === '/api/director/report') {
-    const leads = loadJSON(LEADS_PATH) || [];
-    const groups = loadJSON(GROUPS_PATH) || [];
-    const mock = loadJSON(MOCK_PATH) || [];
-    const receipts = loadJSON(path.join(__dirname, 'receipts.json')) || [];
-
-    const approvedReceipts = receipts.filter(r => r.status === 'Tasdiqlandi');
-    let totalRevenue = 0;
-    approvedReceipts.forEach(r => {
-      const amt = parseInt(String(r.amount).replace(/\D/g, ''), 10);
-      if (!isNaN(amt)) totalRevenue += amt;
-    });
-
-    const hasData = (leads.length > 0 || groups.length > 0 || approvedReceipts.length > 0 || mock.length > 0);
-    let summaryText = '';
-    if (!hasData) {
-      summaryText = `📊 <b>O'quv Markazi Boshqaruv Hisoboti:</b>\nHozircha tizimda faol o'zgarishlar mavjud emas. Yangi arizalar kelib tushganda yoki guruhlar ochilganda haqiqiy ko'rsatkichlar shu yerda aks etadi.`;
-    } else {
-      summaryText = `
-📊 <b>O'quv Markazi Haqiqiy Ko'rsatkichlari:</b>
-1. <b>Arizalar (Lidlar):</b> Jami ${leads.length} ta ariza qabul qilindi.
-2. <b>Moliya:</b> ${approvedReceipts.length} ta to'lov tasdiqlandi (Jami tushum: ${totalRevenue.toLocaleString('uz-UZ')} so'm).
-3. <b>Faol Guruhlar:</b> ${groups.length} ta guruh shakllantirildi.
-4. <b>Mock Imtihonlar:</b> ${mock.length} ta nomzod ro'yxatdan o'tdi.
-      `.trim();
-    }
-
-    const report = {
-      period: 'Joriy oy',
-      totalLeads: leads.length,
-      activeGroups: groups.length,
-      mockAttendees: mock.length,
-      paidStudents: approvedReceipts.length,
-      estimatedRevenue: `${totalRevenue.toLocaleString('uz-UZ')} so'm`,
-      aiSummary: summaryText
-    };
-
+    const report = buildDirectorReportData();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, report }));
     return;
   }
 
+  // 15.1 Direktor oylik hisobotini Telegramga darhol yuborish: POST /api/director/send-telegram
+  if (req.method === 'POST' && pathname === '/api/director/send-telegram') {
+    try {
+      const result = await sendDirectorMonthlyReport(true);
+      res.writeHead(result.sent ? 200 : 400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: !!result.sent, ...result }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 15.2 To'lov qilmagan o'quvchilarga Telegram eslatma yuborish: POST /api/admin/send-payment-reminders
+  if (req.method === 'POST' && pathname === '/api/admin/send-payment-reminders') {
+    try {
+      const result = await sendPaymentReminders(true);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, ...result }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
   // Ariza yuborgan o'quvchini mos guruhga avtomatik qo'shish yordamchisi
-  function autoAssignStudentToGroup({ name, phone, course, preferredTime }) {
+  function autoAssignStudentToGroup({ name, phone, course, preferredTime, chatId: dataChatId }) {
     if (!name && !phone) return null;
     const groups = loadJSON(GROUPS_PATH) || [];
     const courses = loadJSON(COURSES_PATH) || [];
@@ -1049,31 +1239,36 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
     }
 
     if (!Array.isArray(targetGroup.students)) targetGroup.students = [];
-    const alreadyInGroup = targetGroup.students.some(s => {
+    const resolvedChatId = dataChatId || findStudentChatId(phone);
+    const existingStudent = targetGroup.students.find(s => {
       const sp = cleanPhone(s.phone);
       if (phoneClean && sp) return sp === phoneClean || sp.endsWith(phoneClean) || phoneClean.endsWith(sp);
       return String(s.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase();
     });
 
-    if (!alreadyInGroup) {
+    if (!existingStudent) {
       targetGroup.students.push({
         name: name || "O'quvchi",
         phone: phone || '',
+        chatId: resolvedChatId || undefined,
         addedAt: new Date().toISOString()
       });
+    } else if (resolvedChatId && !existingStudent.chatId) {
+      existingStudent.chatId = resolvedChatId;
     }
 
     saveJSON(GROUPS_PATH, groups, 'groups');
     return targetGroup;
   }
 
-  // 16. Sinov darsiga yozilish: POST /api/enroll
+  // 16. Kursga yozilish: POST /api/enroll
   if (req.method === 'POST' && pathname === '/api/enroll') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', async () => {
       try {
         const data = JSON.parse(body);
+        const fromN8n = data.source === 'n8n' || data.skipN8nWebhook === true;
         console.log('📌 Yangi ariza keldi:', data);
 
         let leads = loadJSON(LEADS_PATH);
@@ -1083,22 +1278,24 @@ Farzandingiz <b>${s.name}</b> bugun <b>${record.groupName || 'dars'}</b> mashg'u
         // O'quvchini guruhga AVTOMATIK qo'shish (ustoz qo'lda qo'shib o'tirmaydi)
         const assignedGroup = autoAssignStudentToGroup(data);
 
-        // n8n Webhook ga to'g'ridan-to'g'ri yuborish
-        try {
-          fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              course: data.course || 'Kurs',
-              name: data.name || '',
-              phone: data.phone || '',
-              date: new Date().toLocaleDateString('uz-UZ')
-            })
-          }).catch(e => console.error('n8n webhook err:', e.message));
-        } catch(e) {}
+        // n8n Webhook ga to'g'ridan-to'g'ri yuborish (n8n ning o'zidan kelgan bo'lsa halqa bo'lmasligi uchun o'tkazib yuboramiz)
+        if (!fromN8n) {
+          try {
+            fetch('https://abdisayimov.app.n8n.cloud/webhook/apex-lead', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                course: data.course || 'Kurs',
+                name: data.name || '',
+                phone: data.phone || '',
+                date: new Date().toLocaleDateString('uz-UZ')
+              })
+            }).catch(e => console.error('n8n webhook err:', e.message));
+          } catch (e) {}
+        }
 
         const sheetUrl = getConfig().google_sheet_url;
-        if (sheetUrl) {
+        if (sheetUrl && !data.skipSheetSync) {
           try {
             console.log('📊 Google Sheets ga yuborilmoqda...');
             const sheetRes = await fetch(sheetUrl, {
@@ -1179,4 +1376,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`👉 Lokal manzil: http://localhost:${PORT}`);
   console.log(`===============================================`);
   storage.syncAllFromSheets(true);
+  setTimeout(runScheduledJobs, 15000);
+  setInterval(runScheduledJobs, 60 * 60 * 1000);
 });

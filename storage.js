@@ -66,7 +66,9 @@ function getConfig() {
     web_app_url: (process.env.WEB_APP_URL || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL : null) || fileCfg.web_app_url || '').trim(),
     admin_chat_id: process.env.ADMIN_CHAT_ID ? Number(process.env.ADMIN_CHAT_ID) : (fileCfg.admin_chat_id || 5565743745),
     channel_username: normalizeChannelTarget(process.env.CHANNEL_USERNAME || fileCfg.channel_username || ''),
-    google_sheet_url: (process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || DEFAULT_GOOGLE_SHEET_URL).trim()
+    google_sheet_url: (process.env.GOOGLE_SHEET_URL || fileCfg.google_sheet_url || DEFAULT_GOOGLE_SHEET_URL).trim(),
+    last_payment_reminder_date: fileCfg.last_payment_reminder_date || '',
+    last_director_report_month: fileCfg.last_director_report_month || ''
   };
 }
 

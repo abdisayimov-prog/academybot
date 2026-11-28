@@ -20,6 +20,29 @@ const { cleanPhone, loadJSON, saveJSON } = storage;
 
 // Ro'yxatdan o'tgan foydalanuvchilar chat_id lari (tezkor xotira sessiyasi)
 const authorizedUsers = new Set();
+// Kanal tugmalaridan (?start=mock / ?start=enroll) kelgan kutilayotgan harakatlar
+const pendingActions = new Map();
+
+/**
+ * Telegram chatId orqali users.json dan foydalanuvchini topadi.
+ */
+function findUserByChatId(chatId) {
+  const users = loadJSON(USERS_PATH, {});
+  for (const phone in users) {
+    if (Number(users[phone]?.chatId) === Number(chatId)) {
+      return { phone, ...users[phone] };
+    }
+  }
+  return null;
+}
+
+/**
+ * Role, telefon, ism va ixtiyoriy action bilan Mini App havolasini yasaydi.
+ */
+function buildAppUrl(role, phone, name, action = '') {
+  const base = `${config.web_app_url}?role=${encodeURIComponent(role)}&phone=${encodeURIComponent(phone || '')}&name=${encodeURIComponent(name || '')}`;
+  return action ? `${base}&action=${encodeURIComponent(action)}` : base;
+}
 
 let config = {};
 
@@ -389,10 +412,13 @@ Iltimos, haqiqiy to'lov skrinshotini (Click / Payme kvitansiyasini) ilovamiz orq
     };
     saveJSON(USERS_PATH, users, 'users');
 
+    const action = pendingActions.get(Number(chatId)) || '';
+    pendingActions.delete(Number(chatId));
+
     if (teacher) {
       // Bu O'QITUVCHI yoki ADMIN!
       console.log(`👨‍🏫 O'qituvchi kirdi: ${teacher.name} (${teacher.phone})`);
-      const teacherAppUrl = `${config.web_app_url}?role=teacher&phone=${encodeURIComponent(teacher.phone)}&name=${encodeURIComponent(teacher.name)}`;
+      const teacherAppUrl = buildAppUrl('teacher', teacher.phone, teacher.name, action);
 
       // O'qituvchining shaxsiy Menu tugmasini ham Ustoz Paneliga ulaymiz
       try {
@@ -401,7 +427,7 @@ Iltimos, haqiqiy to'lov skrinshotini (Click / Payme kvitansiyasini) ilovamiz orq
           menu_button: {
             type: 'web_app',
             text: '🔐 Ustoz Paneli',
-            web_app: { url: teacherAppUrl }
+            web_app: { url: buildAppUrl('teacher', teacher.phone, teacher.name) }
           }
         });
       } catch (e) {}
@@ -416,9 +442,15 @@ Siz muvaffaqiyatli tasdiqlandingiz:
 Siz uchun maxsus <b>Boshqaruv Paneli</b> tayyor. Quyidagi tugmani bosib, yangi lidlarni ko'rishingiz, guruh ochishingiz va davomat qilishingiz mumkin: 👇
       `;
 
+      const teacherBtnText = action === 'mock'
+        ? '🎟 Mock Test Sahifasini Ochish'
+        : action === 'enroll'
+          ? '📚 Kurslar Sahifasini Ochish'
+          : '🔐 Ustoz Boshqaruv Panelini Ochish';
+
       await sendMessage(chatId, teacherMsg, {
         inline_keyboard: [
-          [{ text: '🔐 Ustoz Boshqaruv Panelini Ochish', web_app: { url: teacherAppUrl } }]
+          [{ text: teacherBtnText, web_app: { url: teacherAppUrl } }]
         ]
       });
 
@@ -429,7 +461,7 @@ Siz uchun maxsus <b>Boshqaruv Paneli</b> tayyor. Quyidagi tugmani bosib, yangi l
     } else {
       // Bu O'QUVCHI yoki OTA-ONA!
       console.log(`🎓 O'quvchi kirdi: ${firstName} (${rawPhone})`);
-      const studentAppUrl = `${config.web_app_url}?role=student&phone=${encodeURIComponent(rawPhone)}&name=${encodeURIComponent(firstName)}`;
+      const studentAppUrl = buildAppUrl('student', rawPhone, firstName, action);
 
       try {
         await telegramRequest('setChatMenuButton', {
@@ -437,12 +469,22 @@ Siz uchun maxsus <b>Boshqaruv Paneli</b> tayyor. Quyidagi tugmani bosib, yangi l
           menu_button: {
             type: 'web_app',
             text: '📱 Apex Ilova',
-            web_app: { url: studentAppUrl }
+            web_app: { url: buildAppUrl('student', rawPhone, firstName) }
           }
         });
       } catch (e) {}
 
-      const studentMsg = `
+      const studentBtnText = action === 'mock'
+        ? '🎟 Mock Testga Yozilish (Chipta Olish)'
+        : action === 'enroll'
+          ? '📚 Kursga Yozilish (Ilovani Ochish)'
+          : '🚀 Apex Ilovani Ochish';
+
+      const studentMsg = action === 'mock'
+        ? `Xush kelibsiz, <b>${firstName}</b>! 🎟\n\nTelefon raqamingiz tasdiqlandi. Mock imtihon smenasini tanlash va chipta olish uchun pastdagi tugmani bosing: 👇`
+        : action === 'enroll'
+          ? `Xush kelibsiz, <b>${firstName}</b>! 📚\n\nTelefon raqamingiz tasdiqlandi. Kursni tanlab ro'yxatdan o'tish va guruhga qo'shilish uchun pastdagi tugmani bosing: 👇`
+          : `
 Xush kelibsiz, <b>${firstName}</b>! 🎓
 
 Telefon raqamingiz muvaffaqiyatli saqlandi.
@@ -451,7 +493,7 @@ Endi siz <b>Apex Academy</b> ilovasi orqali barcha kurslar, narxlar, haftalik Mo
 
       await sendMessage(chatId, studentMsg, {
         inline_keyboard: [
-          [{ text: '🚀 Apex Ilovani Ochish', web_app: { url: studentAppUrl } }]
+          [{ text: studentBtnText, web_app: { url: studentAppUrl } }]
         ]
       });
 
@@ -464,12 +506,51 @@ Endi siz <b>Apex Academy</b> ilovasi orqali barcha kurslar, narxlar, haftalik Mo
 
   // 2. /start buyrug'i bosilganda
   if (text.startsWith('/start')) {
+    const startParts = text.trim().split(/\s+/);
+    const startParam = (startParts[1] || '').trim().toLowerCase();
+    const action = startParam === 'mock' ? 'mock' : (startParam === 'enroll' ? 'enroll' : '');
+
+    // Agar foydalanuvchi allaqachon ro'yxatdan o'tgan bo'lsa va kanal tugmasi (?start=mock / ?start=enroll) orqali kirsa
+    const existingUser = findUserByChatId(chatId);
+    if (existingUser) {
+      authorizedUsers.add(Number(chatId));
+      const teachers = loadTeachers();
+      const teacher = teachers.find(t => cleanPhone(t.phone) === cleanPhone(existingUser.phone));
+      const role = teacher ? 'teacher' : 'student';
+      const displayName = teacher ? teacher.name : (existingUser.name || firstName);
+      const displayPhone = teacher ? teacher.phone : (existingUser.rawPhone || existingUser.phone);
+      const appUrl = buildAppUrl(role, displayPhone, displayName, action);
+
+      if (action === 'mock') {
+        await sendMessage(chatId, `🎯 <b>Rasmiy Mock Test</b>\n\nHurmatli <b>${displayName}</b>, bo'sh smenalarni ko'rish va chipta band qilish uchun tugmani bosing: 👇`, {
+          inline_keyboard: [[{ text: '🎟 Mock Testga Yozilish', web_app: { url: appUrl } }]]
+        });
+        return;
+      }
+      if (action === 'enroll') {
+        await sendMessage(chatId, `📚 <b>Kurslarga Qabul</b>\n\nHurmatli <b>${displayName}</b>, kerakli kursni tanlab guruhga avtomatik qo'shilish uchun tugmani bosing: 👇`, {
+          inline_keyboard: [[{ text: '✍️ Kursga Yozilish', web_app: { url: appUrl } }]]
+        });
+        return;
+      }
+    }
+
+    if (action) {
+      pendingActions.set(Number(chatId), action);
+    }
+
+    const actionIntro = action === 'mock'
+      ? '🎟 <b>Mock imtihoniga chipta olish</b> uchun avval telefon raqamingizni tasdiqlang:'
+      : action === 'enroll'
+        ? '📚 <b>Kursga yozilish</b> uchun avval telefon raqamingizni tasdiqlang:'
+        : 'Xavfsizlik va tizim sizga mos bo\'limni (<b>O\'qituvchilar Paneli</b> yoki <b>O\'quvchi Kabineti</b>) ochib berishi uchun, iltimos pastdagi tugmani bosing: 👇';
+
     const welcomeText = `
 Assalomu alaykum, <b>${firstName}</b>! 🎓
 
 <b>Apex Academy</b> rasmiy tizimiga xush kelibsiz!
 
-Xavfsizlik va tizim sizga mos bo'limni (<b>O'qituvchilar Paneli</b> yoki <b>O'quvchi Kabineti</b>) ochib berishi uchun, iltimos pastdagi tugmani bosing: 👇
+${actionIntro}
     `;
 
     const contactKeyboard = {
